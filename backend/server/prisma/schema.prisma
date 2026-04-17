@@ -18,6 +18,9 @@ model Document {
   extractedData    String?  // JSON string
   complianceScore  Int?
   complianceReport String?  // JSON string
+  uploadedBy       String?
+  projectId        String?  // Linked project
+  project          Project? @relation(fields: [projectId], references: [id])
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -46,4 +49,28 @@ model LawUpdate {
   effectiveDate DateTime?
   vectorId      String?   // Reference to Qdrant point ID
   createdAt     DateTime  @default(now())
+}
+
+model SystemLog {
+  id          String   @id @default(uuid())
+  eventType   String   // DOCUMENT_UPLOADED | AI_CHECK_RUN
+  username    String   // Name of the user performing the action
+  details     String?  // Optional JSON string for extra info
+  createdAt   DateTime @default(now())
+}
+
+model Project {
+  id           String   @id @default(uuid())
+  name         String
+  client       String?
+  status       String   @default("PLANNING") // PLANNING | ACTIVE | COMPLETED
+  compliances  String?  // JSON string of selected compliances (array of objects)
+  createdBy    String   // User name or ID
+  documents    Document[]
+  timelineType String?  // MONTH | DATE | RELATIVE | RANGE
+  startDate    DateTime?
+  endDate      DateTime?
+  duration     String?   // e.g. "1 month"
+  lastUpdated  DateTime @updatedAt
+  createdAt    DateTime @default(now())
 }

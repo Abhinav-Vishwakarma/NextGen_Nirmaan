@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import fs from 'fs'
+import scraperRoutes from './routes/scraper'
 
 dotenv.config()
 
@@ -139,11 +140,26 @@ app.get('/api/documents', async (req, res) => {
         status: true,
         complianceScore: true,
         createdAt: true,
+        uploadedBy: true,
       },
     })
     res.json({ documents })
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch documents' })
+  }
+})
+
+app.get('/api/documents/:id', async (req, res) => {
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: req.params.id }
+    })
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' })
+    }
+    res.json(document)
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch document' })
   }
 })
 
@@ -155,7 +171,7 @@ app.post('/api/documents/upload', upload.single('file'), async (req: Request, re
       return res.status(400).json({ error: 'No file provided' })
     }
 
-    const { category = 'INVOICE' } = req.body
+    const { category = 'INVOICE', uploadedBy } = req.body
     
     // The UUID is the filename without extension, configured in multer
     const fileId = path.parse(file.filename).name
@@ -168,8 +184,18 @@ app.post('/api/documents/upload', upload.single('file'), async (req: Request, re
         fileType: file.mimetype,
         filePath: file.filename, 
         category,
+        uploadedBy,
         status: 'EXTRACTING',
       },
+    })
+
+    // Log the event
+    await prisma.systemLog.create({
+      data: {
+        eventType: 'DOCUMENT_UPLOADED',
+        username: uploadedBy || 'System',
+        details: JSON.stringify({ documentId: fileId, fileName: file.originalname })
+      }
     })
 
     // 2. Call AI Server for OCR
@@ -218,6 +244,56 @@ app.post('/api/documents/upload', upload.single('file'), async (req: Request, re
   }
 })
 
+// Run Ingestion (OCR) on an existing document
+app.post('/api/documents/:id/ingest', async (req, res) => {
+  const { id } = req.params
+  try {
+    const doc = await prisma.document.findUnique({ where: { id: id as string }})
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' })
+    }
+
+    // 1. Update status
+    await prisma.document.update({
+      where: { id: id as string },
+      data: { status: 'EXTRACTING' }
+    })
+
+    // 2. Call AI Server for OCR
+    const aiServerUrl = process.env.AI_SERVER_URL || 'http://localhost:5000'
+    const fullPath = path.join(uploadsDir, doc.filePath)
+    
+    const ocrResponse = await fetch(`${aiServerUrl}/api/ai/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filePath: fullPath,
+        mimeType: doc.fileType
+      })
+    })
+
+    if (!ocrResponse.ok) {
+        throw new Error(`AI Extraction failed: ${await ocrResponse.text()}`)
+    }
+
+    const ocrData = await ocrResponse.json()
+    
+    // 3. Update document with extracted data
+    const updatedDoc = await prisma.document.update({
+        where: { id: id as string },
+        data: {
+            status: 'EXTRACTED',
+            extractedData: JSON.stringify(ocrData.extractedData)
+        }
+    })
+
+    res.json(updatedDoc)
+  } catch (error) {
+    console.error('Ingestion Error:', error)
+    res.status(500).json({ error: 'Ingestion failed' })
+  }
+})
+
 // Proxy pass verification to AI Server
 app.post('/api/documents/:id/verify', async (req, res) => {
   const { id } = req.params
@@ -253,6 +329,15 @@ app.post('/api/documents/:id/verify', async (req, res) => {
          }
      })
 
+     // Log the event
+     await prisma.systemLog.create({
+       data: {
+         eventType: 'AI_CHECK_RUN',
+         username: doc.uploadedBy || 'System',
+         details: JSON.stringify({ documentId: id, fileName: doc.fileName, score: verifyData.complianceScore })
+       }
+     })
+
      if (updated.status === 'FLAGGED') {
          await prisma.alert.create({
              data: {
@@ -273,9 +358,190 @@ app.post('/api/documents/:id/verify', async (req, res) => {
 })
 
 
+app.get("/api/ai/laws", async (req: Request, res: Response) => {
+  try {
+    const aiServerUrl = process.env.AI_SERVER_URL || "http://localhost:5000"
+    const aiRes = await fetch(`${aiServerUrl}/api/ai/laws`)
+    if (!aiRes.ok) throw new Error(await aiRes.text())
+    const data = await aiRes.json()
+    res.json(data)
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch laws" })
+  }
+})
+
+app.post("/api/ai/search-laws", async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body
+    const aiServerUrl = process.env.AI_SERVER_URL || "http://localhost:5000"
+    const aiRes = await fetch(`${aiServerUrl}/api/ai/search-laws`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query })
+    })
+    if (!aiRes.ok) throw new Error(await aiRes.text())
+    const data = await aiRes.json()
+    res.json(data)
+  } catch (error) {
+    res.status(500).json({ error: "Search failed" })
+  }
+})
+
+
 // Serve uploaded files statically
 app.use('/api/files', express.static(uploadsDir))
 
+
+// === LOGS API ===
+app.get('/api/logs', async (req: Request, res: Response) => {
+  const logs = await prisma.systemLog.findMany({
+    orderBy: { createdAt: 'desc' },
+  })
+  res.json({ logs })
+})
+
+// === PROJECTS API ===
+app.get('/api/projects', async (req, res) => {
+  try {
+    const projects = await prisma.project.findMany({
+      orderBy: { createdAt: 'desc' },
+    })
+    res.json({ projects })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch projects' })
+  }
+})
+
+app.post('/api/projects', async (req, res) => {
+  try {
+    const { name, client, compliances, createdBy, timelineType, startDate, endDate, duration } = req.body
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Project name is required' })
+    }
+
+    const project = await prisma.project.create({
+      data: {
+        name,
+        client,
+        compliances: compliances ? JSON.stringify(compliances) : null,
+        createdBy: createdBy || 'Anonymous',
+        timelineType,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        duration,
+        status: 'PLANNING'
+      }
+    })
+
+    // Log the event
+    await prisma.systemLog.create({
+      data: {
+        eventType: 'PROJECT_CREATED',
+        username: createdBy || 'Anonymous',
+        details: JSON.stringify({ projectId: project.id, name: project.name })
+      }
+    })
+
+    res.status(201).json(project)
+  } catch (error) {
+    console.error('Project Creation Error:', error)
+    res.status(500).json({ error: 'Failed to create project' })
+  }
+})
+
+app.get('/api/projects/:id', async (req, res) => {
+  try {
+    const id = req.params.id as string
+    const project = await prisma.project.findUnique({
+      where: { id }
+    })
+    if (!project) return res.status(404).json({ error: 'Project not found' })
+    
+    // Also fetch documents linked to this project
+    const documents = await prisma.document.findMany({
+      where: { projectId: id },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    res.json({ ...project, documents })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch project' })
+  }
+})
+
+app.post('/api/projects/:id/upload', upload.array('files'), async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string
+    const files = req.files as Express.Multer.File[]
+    const { uploadedBy } = req.body
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files provided' })
+    }
+
+    const createdDocs = []
+
+    for (const file of files) {
+      const fileId = path.parse(file.filename).name
+      const doc = await prisma.document.create({
+        data: {
+          id: fileId,
+          fileName: file.originalname,
+          fileType: file.mimetype,
+          filePath: file.filename,
+          projectId: id as string,
+          uploadedBy: uploadedBy || 'Anonymous',
+          status: 'UPLOADED'
+        }
+      })
+      createdDocs.push(doc)
+
+      // Log each upload
+      await prisma.systemLog.create({
+        data: {
+          eventType: 'DOCUMENT_UPLOADED',
+          username: uploadedBy || 'Anonymous',
+          details: JSON.stringify({ documentId: fileId, fileName: file.originalname, projectId: id })
+        }
+      })
+    }
+
+    res.status(201).json({ documents: createdDocs })
+  } catch (error) {
+    console.error('Multi-upload error:', error)
+    res.status(500).json({ error: 'Failed to upload files' })
+  }
+})
+
+app.patch('/api/projects/:id', async (req, res) => {
+  try {
+    const id = req.params.id as string
+    const { name, client, compliances, status, timelineType, startDate, endDate, duration } = req.body
+
+    const project = await prisma.project.update({
+      where: { id },
+      data: {
+        name,
+        client,
+        compliances: compliances ? JSON.stringify(compliances) : undefined,
+        status,
+        timelineType,
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+        duration
+      }
+    })
+
+    res.json(project)
+  } catch (error) {
+    console.error('Project Update Error:', error)
+    res.status(500).json({ error: 'Failed to update project' })
+  }
+})
+
+// === SCRAPER API ===
+app.use('/api/scraper', scraperRoutes)
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {

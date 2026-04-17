@@ -8,13 +8,16 @@ export function Modal({ isOpen, title, onClose, children }: ModalProps): JSX.Ele
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-lg">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div 
+        className="w-full max-w-2xl rounded-xl bg-slate-900 border border-slate-800 p-6 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-4 flex items-start justify-between gap-3">
-          <h3 className="text-base font-semibold text-slate-900">{title ?? 'Dialog'}</h3>
-          <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close modal">
-            Close
-          </Button>
+          <h3 className="text-lg font-semibold text-slate-100">{title ?? 'Dialog'}</h3>
         </div>
         <div>{children}</div>
       </div>

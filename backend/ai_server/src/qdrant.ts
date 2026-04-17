@@ -66,3 +66,26 @@ export async function searchSimilar(vector: number[], limit = 5): Promise<Search
   const data = await res.json()
   return (data.result || []) as SearchResult[]
 }
+
+export async function listPoints(limit = 20): Promise<SearchResult[]> {
+  const res = await fetch(
+    `${QDRANT_URL}/collections/${COLLECTION_NAME}/points/scroll`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        limit,
+        with_payload: true,
+      }),
+    }
+  )
+
+  if (!res.ok) throw new Error(`Qdrant scroll failed: ${await res.text()}`)
+  const data = await res.json()
+  // Scroll returns { result: { points: [...], next_page_offset: ... } }
+  const points = data.result?.points || []
+  return points.map((p: any) => ({
+    payload: p.payload,
+    score: 1.0 // Default score for listing
+  }))
+}

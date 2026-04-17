@@ -26,7 +26,7 @@ async function main() {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      vectors: { size: 768, distance: 'Cosine' },
+      vectors: { size: 3072, distance: 'Cosine' },
     }),
   })
 

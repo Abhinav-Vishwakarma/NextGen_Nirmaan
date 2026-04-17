@@ -2,7 +2,9 @@
 
 import { useEffect, useState, use } from 'react'
 import { api } from '@/lib/api'
-import { ArrowLeft, CheckCircle, AlertTriangle, Info, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CheckCircle, AlertTriangle, Info, ShieldCheck, User } from 'lucide-react'
+import { useToast } from '@/hooks/useToast'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 // SVG Gauge Component
 function ScoreGauge({ score }: { score: number }) {
@@ -28,7 +30,7 @@ function ScoreGauge({ score }: { score: number }) {
           cx="64" cy="64" r="45"
           stroke={color} strokeWidth="8" fill="transparent"
           strokeDasharray={circumference}
-          strokeDashoffset={score === 0 ? circumference : offset} // animate to offset later
+          strokeDashoffset={score === 0 ? circumference : offset}
           strokeLinecap="round"
           className="transition-all duration-1000 ease-out"
         />
@@ -46,16 +48,36 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const [doc, setDoc] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
+  const [autoRunTriggered, setAutoRunTriggered] = useState(false)
+  const { showToast } = useToast()
+  
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const autoRun = searchParams.get('autoRun') === 'true'
 
   useEffect(() => {
     fetchDoc()
   }, [])
 
+  useEffect(() => {
+    if (doc && autoRun && !autoRunTriggered && !verifying && (doc.status === 'EXTRACTED' || doc.status === 'UPLOADED')) {
+      setAutoRunTriggered(true)
+      handleVerify()
+      // Clean up the URL to prevent re-running on manual refresh
+      router.replace(pathname, { scroll: false })
+    }
+  }, [doc, autoRun, autoRunTriggered, verifying])
+
   const fetchDoc = async () => {
     try {
-      const res = await api.get('/api/documents')
-      const target = res.documents.find((d: any) => d.id === id)
+      const target = await api.get(`/api/documents/${id}`)
       setDoc(target || null)
+      if (!target) {
+        showToast({ type: 'error', title: 'Document not found', message: 'This document could not be loaded.' })
+      }
+    } catch {
+      showToast({ type: 'error', title: 'Failed to load document', message: 'Could not reach the server.' })
     } finally {
       setLoading(false)
     }
@@ -63,12 +85,36 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   const handleVerify = async () => {
     setVerifying(true)
+    showToast({ type: 'info', title: 'Running AI compliance check…', message: 'This may take a few seconds.' })
     try {
        const res = await api.post(`/api/documents/${id}/verify`, {})
-       setDoc(res) // API should return updated doc with complianceReport
-    } catch (e) {
-       console.error("Verification failed", e)
-       alert("Verification failed.")
+       setDoc(res)
+
+       const report = res.complianceReport ? JSON.parse(res.complianceReport) : null
+       const score = report?.complianceScore ?? res.complianceScore
+
+       if (res.status === 'VERIFIED') {
+         showToast({
+           type: 'success',
+           title: `✅ Compliance Passed — Score ${score}`,
+           message: report?.summary || 'Document meets all GST requirements.',
+           duration: 6000,
+         })
+       } else {
+         showToast({
+           type: 'warning',
+           title: `⚠️ Flagged — Score ${score}`,
+           message: report?.summary || 'Compliance issues detected. Review the report.',
+           duration: 7000,
+         })
+       }
+    } catch (e: any) {
+       showToast({
+         type: 'error',
+         title: 'Verification failed',
+         message: e?.message || 'The AI engine encountered an error.',
+         duration: 6000,
+       })
     } finally {
        setVerifying(false)
     }
@@ -91,9 +137,20 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white mb-2">{doc.fileName}</h1>
-          <p className="text-slate-400 text-sm">Status: 
-              <span className="px-2 py-1 mx-2 bg-white/10 rounded-md text-white">{doc.status}</span>
-          </p>
+          <div className="flex items-center gap-4 text-slate-400 text-sm">
+            <p>
+              Status: <span className="px-2 py-1 ml-2 bg-white/10 rounded-md text-white">{doc.status}</span>
+            </p>
+            {doc.uploadedBy && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-slate-600"></span>
+                <p className="flex items-center gap-1.5 text-blue-400">
+                  <User size={14} />
+                  <span>{doc.uploadedBy}</span>
+                </p>
+              </>
+            )}
+          </div>
         </div>
         
         {(doc.status === 'EXTRACTED' || doc.status === 'UPLOADED') && (
