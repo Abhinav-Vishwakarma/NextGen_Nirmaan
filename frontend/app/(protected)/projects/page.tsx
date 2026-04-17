@@ -136,7 +136,7 @@ export default function ProjectsPage() {
         <div>
           <div className="flex items-center gap-2 text-blue-500 font-semibold text-sm uppercase tracking-wider mb-2">
             <Globe size={16} />
-            Infrastructure Management
+            Compliance Management System
           </div>
           <h1 className="text-4xl font-extrabold text-white tracking-tight flex items-center gap-3">
             Projects <span className="text-slate-500 font-normal">/ Overview</span>

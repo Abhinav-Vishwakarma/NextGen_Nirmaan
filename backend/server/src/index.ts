@@ -396,6 +396,70 @@ app.post('/api/projects', async (req, res) => {
   }
 })
 
+app.get('/api/projects/:id', async (req, res) => {
+  try {
+    const id = req.params.id as string
+    const project = await prisma.project.findUnique({
+      where: { id }
+    })
+    if (!project) return res.status(404).json({ error: 'Project not found' })
+    
+    // Also fetch documents linked to this project
+    const documents = await prisma.document.findMany({
+      where: { projectId: id },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    res.json({ ...project, documents })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch project' })
+  }
+})
+
+app.post('/api/projects/:id/upload', upload.array('files'), async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string
+    const files = req.files as Express.Multer.File[]
+    const { uploadedBy } = req.body
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: 'No files provided' })
+    }
+
+    const createdDocs = []
+
+    for (const file of files) {
+      const fileId = path.parse(file.filename).name
+      const doc = await prisma.document.create({
+        data: {
+          id: fileId,
+          fileName: file.originalname,
+          fileType: file.mimetype,
+          filePath: file.filename,
+          projectId: id as string,
+          uploadedBy: uploadedBy || 'Anonymous',
+          status: 'UPLOADED'
+        }
+      })
+      createdDocs.push(doc)
+
+      // Log each upload
+      await prisma.systemLog.create({
+        data: {
+          eventType: 'DOCUMENT_UPLOADED',
+          username: uploadedBy || 'Anonymous',
+          details: JSON.stringify({ documentId: fileId, fileName: file.originalname, projectId: id })
+        }
+      })
+    }
+
+    res.status(201).json({ documents: createdDocs })
+  } catch (error) {
+    console.error('Multi-upload error:', error)
+    res.status(500).json({ error: 'Failed to upload files' })
+  }
+})
+
 // === SCRAPER API ===
 app.use('/api/scraper', scraperRoutes)
 

@@ -19,6 +19,8 @@ model Document {
   complianceScore  Int?
   complianceReport String?  // JSON string
   uploadedBy       String?
+  projectId        String?  // Linked project
+  project          Project? @relation(fields: [projectId], references: [id])
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -64,6 +66,7 @@ model Project {
   status       String   @default("PLANNING") // PLANNING | ACTIVE | COMPLETED
   compliances  String?  // JSON string of selected compliances (array of objects)
   createdBy    String   // User name or ID
+  documents    Document[]
   lastUpdated  DateTime @updatedAt
   createdAt    DateTime @default(now())
 }
