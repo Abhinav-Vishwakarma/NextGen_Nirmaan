@@ -82,7 +82,7 @@ export default function LawIntelPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto stagger-children animate-fade-in pb-16">
+    <div className="max-w-5xl mx-auto stagger-children animate-fade-in pb-16">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <Scale size={28} className="text-blue-500" />
@@ -91,7 +91,8 @@ export default function LawIntelPage() {
         <p className="text-slate-400">Upload legal notices, contracts, and regulatory documents for AI analysis.</p>
       </div>
 
-      <div className="glass-card p-12 text-center rounded-xl border-2 border-[#ffffff14] transition-all">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="glass-card p-12 text-center rounded-xl border-2 border-[#ffffff14] transition-all flex flex-col justify-center">
         {!file ? (
           <div 
             className={cn(
@@ -167,10 +168,10 @@ export default function LawIntelPage() {
             )}
           </div>
         )}
-      </div>
+        </div>
 
-      {/* Latest Government Announcements */}
-      <div className="mt-12 glass-card p-8 rounded-xl border border-white/10">
+        {/* Latest Government Announcements */}
+        <div className="glass-card p-8 rounded-xl border border-white/10 h-[500px] overflow-y-auto flex flex-col">
         <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
           <Scale size={20} className="text-blue-400" />
           Latest Regulatory Announcements
@@ -190,6 +191,7 @@ export default function LawIntelPage() {
         ) : (
           <p className="text-slate-500 italic">No recent announcements found.</p>
         )}
+        </div>
       </div>
     </div>
   )
