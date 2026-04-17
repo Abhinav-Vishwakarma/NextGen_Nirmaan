@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Upload as UploadIcon, File as FileIcon, CheckCircle, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Upload as UploadIcon, File as FileIcon, CheckCircle, AlertCircle, X } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/useToast'
@@ -13,7 +13,18 @@ export default function UploadPage() {
   const [extractedData, setExtractedData] = useState<any>(null)
   const [docId, setDocId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const [countdown, setCountdown] = useState<number | null>(null)
   const { showToast } = useToast()
+
+  useEffect(() => {
+    if (countdown === null) return
+    if (countdown === 0) {
+      if (docId) window.location.href = `/documents/${docId}?autoRun=true`
+      return
+    }
+    const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [countdown, docId])
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -38,6 +49,7 @@ export default function UploadPage() {
   const processFile = async (selectedFile: File) => {
     setStatus('uploading')
     setErrorMsg('')
+    setCountdown(null)
 
     showToast({
       type: 'info',
@@ -54,6 +66,7 @@ export default function UploadPage() {
       setDocId(uploadRes.id)
       setExtractedData(uploadRes.extractedData)
       setStatus('extracted')
+      setCountdown(5)
 
       showToast({
         type: 'success',
@@ -161,7 +174,7 @@ export default function UploadPage() {
         </div>
 
         {/* Extraction Result / Preview */}
-        <div className="glass-card p-6 h-[500px] overflow-y-auto">
+        <div className="glass-card p-6 h-[500px] overflow-y-auto flex flex-col">
            {status === 'idle' && (
                <div className="h-full flex flex-col items-center justify-center text-slate-500">
                   <FileIcon size={48} className="mb-4 opacity-20" />
@@ -177,13 +190,13 @@ export default function UploadPage() {
            )}
 
            {status === 'extracted' && extractedData && (
-               <div className="animate-fade-in">
+               <div className="animate-fade-in flex flex-col h-full">
                   <div className="flex items-center gap-2 text-emerald-400 mb-6">
                      <CheckCircle size={20} />
                      <h3 className="font-medium text-white">Data Extracted Successfully</h3>
                   </div>
 
-                  <div className="space-y-4 text-sm">
+                  <div className="space-y-4 text-sm flex-1">
                      <div className="p-4 bg-white/5 rounded-lg border border-white/5">
                         <div className="text-slate-400 text-xs mb-1">Vendor</div>
                         <div className="text-white font-medium">{extractedData.vendor_name || 'N/A'}</div>
@@ -214,13 +227,33 @@ export default function UploadPage() {
                           <span className="font-bold text-lg">₹{extractedData.grand_total}</span>
                         </div>
                      </div>
+                  </div>
 
-                     <button 
-                       onClick={() => window.location.href = `/documents/${docId}`}
-                       className="w-full mt-6 px-6 py-3 bg-white text-black hover:bg-slate-200 rounded-lg font-medium transition-colors flex justify-center items-center gap-2"
-                     >
-                        Run AI Compliance Check
-                     </button>
+                  <div className="mt-6">
+                    {countdown !== null ? (
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => window.location.href = `/documents/${docId}?autoRun=true`}
+                          className="flex-1 px-6 py-3 bg-white text-black hover:bg-slate-200 rounded-lg font-medium transition-colors flex justify-center items-center gap-2"
+                        >
+                           Running AI Compliance in {countdown}s...
+                        </button>
+                        <button 
+                          onClick={() => setCountdown(null)}
+                          className="px-4 py-3 bg-white/10 hover:bg-white/20 text-slate-300 rounded-lg font-medium transition-colors"
+                          title="Cancel Auto-redirect"
+                        >
+                           <X size={20} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => window.location.href = `/documents/${docId}?autoRun=true`}
+                        className="w-full px-6 py-3 bg-white text-black hover:bg-slate-200 rounded-lg font-medium transition-colors flex justify-center items-center gap-2"
+                      >
+                         Run AI Compliance Check
+                      </button>
+                    )}
                   </div>
                </div>
            )}

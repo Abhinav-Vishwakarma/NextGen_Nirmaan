@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react'
 import { api } from '@/lib/api'
 import { ArrowLeft, CheckCircle, AlertTriangle, Info, ShieldCheck } from 'lucide-react'
 import { useToast } from '@/hooks/useToast'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
 // SVG Gauge Component
 function ScoreGauge({ score }: { score: number }) {
@@ -47,11 +48,26 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const [doc, setDoc] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
+  const [autoRunTriggered, setAutoRunTriggered] = useState(false)
   const { showToast } = useToast()
+  
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const autoRun = searchParams.get('autoRun') === 'true'
 
   useEffect(() => {
     fetchDoc()
   }, [])
+
+  useEffect(() => {
+    if (doc && autoRun && !autoRunTriggered && !verifying && (doc.status === 'EXTRACTED' || doc.status === 'UPLOADED')) {
+      setAutoRunTriggered(true)
+      handleVerify()
+      // Clean up the URL to prevent re-running on manual refresh
+      router.replace(pathname, { scroll: false })
+    }
+  }, [doc, autoRun, autoRunTriggered, verifying])
 
   const fetchDoc = async () => {
     try {
