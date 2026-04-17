@@ -364,7 +364,7 @@ app.get('/api/projects', async (req, res) => {
 
 app.post('/api/projects', async (req, res) => {
   try {
-    const { name, client, compliances, createdBy } = req.body
+    const { name, client, compliances, createdBy, timelineType, startDate, endDate, duration } = req.body
     
     if (!name) {
       return res.status(400).json({ error: 'Project name is required' })
@@ -376,6 +376,10 @@ app.post('/api/projects', async (req, res) => {
         client,
         compliances: compliances ? JSON.stringify(compliances) : null,
         createdBy: createdBy || 'Anonymous',
+        timelineType,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        duration,
         status: 'PLANNING'
       }
     })
@@ -463,7 +467,7 @@ app.post('/api/projects/:id/upload', upload.array('files'), async (req: Request,
 app.patch('/api/projects/:id', async (req, res) => {
   try {
     const id = req.params.id as string
-    const { name, client, compliances, status } = req.body
+    const { name, client, compliances, status, timelineType, startDate, endDate, duration } = req.body
 
     const project = await prisma.project.update({
       where: { id },
@@ -471,7 +475,11 @@ app.patch('/api/projects/:id', async (req, res) => {
         name,
         client,
         compliances: compliances ? JSON.stringify(compliances) : undefined,
-        status
+        status,
+        timelineType,
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+        duration
       }
     })
 

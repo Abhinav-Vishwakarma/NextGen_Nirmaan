@@ -197,40 +197,93 @@ export default function ProjectDetailsPage() {
     )
   }
 
+  const formatTimeline = () => {
+    if (!project.timelineType) return 'No timeline set'
+    
+    const start = project.startDate ? new Date(project.startDate) : null
+    const end = project.endDate ? new Date(project.endDate) : null
+
+    switch (project.timelineType) {
+      case 'MONTH':
+        return start ? start.toLocaleString('default', { month: 'long', year: 'numeric' }) : 'Invalid Month'
+      case 'DATE':
+        return start ? start.toLocaleDateString('default', { dateStyle: 'long' }) : 'Invalid Date'
+      case 'RELATIVE':
+        return start ? `From ${start.toLocaleDateString()} (${project.duration})` : 'Invalid Range'
+      case 'RANGE':
+        return (start && end) ? `${start.toLocaleDateString()} — ${end.toLocaleDateString()}` : 'Invalid Range'
+      default:
+        return 'Custom Timeline'
+    }
+  }
+
   const currentCompliances = isEditingCompliances ? tempCompliances : (project.compliances ? JSON.parse(project.compliances) : [])
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="space-y-4">
-          <Link href="/projects" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors group">
-            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 bg-slate-900/40 backdrop-blur-md border border-slate-800 p-8 rounded-[2.5rem] relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[100px] -mr-32 -mt-32 rounded-full" />
+        
+        <div className="space-y-6 relative z-10 flex-1">
+          <Link href="/projects" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-white transition-colors group/back">
+            <ArrowLeft size={16} className="group-hover/back:-translate-x-1 transition-transform" />
             Back to Overview
           </Link>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-extrabold text-white tracking-tight">{project.name}</h1>
-              <span className={`text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full border ${
-                project.status === 'ACTIVE' ? 'bg-green-500/5 text-green-400 border-green-500/20' :
-                project.status === 'COMPLETED' ? 'bg-slate-800/50 text-slate-400 border-slate-700' :
-                'bg-yellow-500/5 text-yellow-400 border-yellow-500/20'
+          
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              <h1 className="text-5xl font-extrabold text-white tracking-tight">{project.name}</h1>
+              <span className={`text-[10px] uppercase tracking-[0.2em] font-black px-4 py-1.5 rounded-full border ${
+                project.status === 'ACTIVE' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                project.status === 'COMPLETED' ? 'bg-slate-800 text-slate-400 border-slate-700' :
+                'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
               }`}>
                 {project.status}
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-6 text-slate-400 text-sm">
-              <div className="flex items-center gap-2">
-                <Building2 size={16} className="text-blue-500" />
+
+            {/* Prominent Project Date */}
+            <div className="inline-flex items-center gap-3 bg-blue-600/10 border border-blue-500/20 px-5 py-3 rounded-2xl group-hover:border-blue-500/40 transition-colors">
+              <Calendar size={22} className="text-blue-500" />
+              <div>
+                <p className="text-[10px] font-bold text-blue-500/60 uppercase tracking-widest">Project Schedule</p>
+                <p className="text-lg font-bold text-blue-400">{formatTimeline()}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 pt-2">
+              <div className="flex items-center gap-2.5 text-slate-400 text-sm font-medium">
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-blue-400 shadow-inner">
+                  <Building2 size={16} />
+                </div>
                 {project.client}
               </div>
-              <div className="flex items-center gap-2">
-                <User size={16} className="text-purple-500" />
-                Created by {project.createdBy}
+              <div className="flex items-center gap-2.5 text-slate-400 text-sm font-medium">
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-purple-400 shadow-inner">
+                  <User size={16} />
+                </div>
+                by {project.createdBy}
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-emerald-500" />
-                {new Date(project.createdAt).toLocaleDateString()}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 shrink-0 relative z-10">
+          <div className="bg-slate-950/50 border border-slate-800 p-4 rounded-2xl space-y-3 min-w-[200px]">
+            <div className="flex items-center gap-3 text-slate-500">
+              <Clock size={14} className="text-emerald-500/50" />
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-widest font-bold opacity-60">Created On</span>
+                <span className="text-xs font-bold text-slate-300">{new Date(project.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
+              </div>
+            </div>
+            <div className="w-full h-px bg-slate-800/50" />
+            <div className="flex items-center gap-3 text-slate-500">
+              <Clock size={14} className="text-amber-500/50" />
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-widest font-bold opacity-60">Last Updated</span>
+                <span className="text-xs font-bold text-slate-300">{new Date(project.lastUpdated).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
               </div>
             </div>
           </div>

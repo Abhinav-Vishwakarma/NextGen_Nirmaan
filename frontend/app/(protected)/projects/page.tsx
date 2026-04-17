@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Folder, Search, CheckCircle, X, ArrowRight, ArrowLeft, Briefcase, Building2, Shield, Globe, Info } from 'lucide-react'
+import { Plus, Folder, Search, Calendar, Clock, X, ArrowRight, ArrowLeft, Briefcase, Building2, Shield, Globe, Info } from 'lucide-react'
 import Link from 'next/link'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { api } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
-
 export default function ProjectsPage() {
   const { showToast } = useToast()
   const [projects, setProjects] = useState<any[]>([])
@@ -25,6 +24,27 @@ export default function ProjectsPage() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [selectedCompliances, setSelectedCompliances] = useState<any[]>([])
+
+  // Timeline states
+  const [timelineType, setTimelineType] = useState('MONTH') // MONTH | DATE | RELATIVE | RANGE
+  const [timelineStart, setTimelineStart] = useState('')
+  const [timelineEnd, setTimelineEnd] = useState('')
+  const [timelineDuration, setTimelineDuration] = useState('1 month')
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+
+  const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+
+  // Update timelineStart whenever month or year changes if type is MONTH
+  useEffect(() => {
+    if (timelineType === 'MONTH') {
+      const monthStr = (selectedMonth + 1).toString().padStart(2, '0')
+      setTimelineStart(`${selectedYear}-${monthStr}`)
+    }
+  }, [selectedMonth, selectedYear, timelineType])
 
   // Fetch projects on mount
   useEffect(() => {
@@ -45,7 +65,7 @@ export default function ProjectsPage() {
 
   // Fetch all laws when query is empty
   useEffect(() => {
-    if (step === 2 && !searchQuery.trim()) {
+    if (step === 3 && !searchQuery.trim()) {
       const fetchLaws = async () => {
         setIsSearching(true)
         try {
@@ -64,13 +84,13 @@ export default function ProjectsPage() {
   // Live Search with Debounce
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
+      if (step === 3 && searchQuery.trim()) {
         handleSearch()
       }
     }, 500) // 500ms debounce
 
     return () => clearTimeout(timer)
-  }, [searchQuery])
+  }, [searchQuery, step])
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
@@ -102,6 +122,9 @@ export default function ProjectsPage() {
     setSearchQuery('')
     setSearchResults([])
     setSelectedCompliances([])
+    setTimelineType('MONTH')
+    setTimelineStart('')
+    setTimelineEnd('')
   }
 
   const handleCreateProject = async () => {
@@ -121,7 +144,11 @@ export default function ProjectsPage() {
         name: newProjectName,
         client: clientName,
         compliances: selectedCompliances,
-        createdBy: user.name
+        createdBy: user.name,
+        timelineType,
+        startDate: timelineStart,
+        endDate: timelineEnd,
+        duration: timelineDuration
       })
       
       // Refresh list
@@ -218,13 +245,14 @@ export default function ProjectsPage() {
       <Modal 
         isOpen={isModalOpen} 
         onClose={resetModal} 
-        title={step === 1 ? "Project Identity" : "Compliance Intelligence"}
+        title={step === 1 ? "Project Identity" : step === 2 ? "Project Timeline" : "Compliance Intelligence"}
       >
         <div className="relative">
           {/* Progress Indicator */}
           <div className="flex items-center gap-2 mb-8 px-1">
             <div className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${step >= 1 ? 'bg-blue-600' : 'bg-slate-800'}`} />
             <div className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${step >= 2 ? 'bg-blue-600' : 'bg-slate-800'}`} />
+            <div className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${step >= 3 ? 'bg-blue-600' : 'bg-slate-800'}`} />
           </div>
 
           {step === 1 ? (
@@ -260,17 +288,132 @@ export default function ProjectsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          ) : step === 2 ? (
+            <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: 'MONTH', label: 'Particular Month', icon: <Calendar size={18} /> },
+                  { id: 'DATE', label: 'Particular Date', icon: <Calendar size={18} /> },
+                  { id: 'RELATIVE', label: 'Relative Range', icon: <Clock size={18} /> },
+                  { id: 'RANGE', label: 'Manual Range', icon: <Calendar size={18} /> },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTimelineType(t.id)}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all gap-2 ${
+                      timelineType === t.id 
+                        ? 'bg-blue-600/10 border-blue-500 text-blue-400' 
+                        : 'bg-slate-950 border-slate-800 text-slate-500 hover:border-slate-700'
+                    }`}
+                  >
+                    {t.icon}
+                    <span className="text-xs font-bold">{t.label}</span>
+                  </button>
+                ))}
+              </div>
 
-              <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-4 flex gap-3 items-start">
-                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500 mt-0.5">
-                  <Info size={16} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-blue-400">Pro Tip</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed mt-1">
-                    Clear project names and client details help our AI better categorize relevant legal frameworks in the next step.
-                  </p>
-                </div>
+              <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-6 space-y-4">
+                {timelineType === 'MONTH' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between px-2">
+                      <button 
+                        onClick={() => setSelectedYear(prev => prev - 1)}
+                        className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all"
+                      >
+                        <ArrowLeft size={16} />
+                      </button>
+                      <span className="text-lg font-bold text-white">{selectedYear}</span>
+                      <button 
+                        onClick={() => setSelectedYear(prev => prev + 1)}
+                        className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all"
+                      >
+                        <ArrowRight size={16} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {MONTHS.map((month, idx) => (
+                        <button
+                          key={month}
+                          onClick={() => setSelectedMonth(idx)}
+                          className={`py-3 rounded-xl text-xs font-bold transition-all ${
+                            selectedMonth === idx 
+                              ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' 
+                              : 'bg-slate-900 text-slate-500 hover:bg-slate-800 hover:text-slate-300'
+                          }`}
+                        >
+                          {month.substring(0, 3)}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="text-center pt-2">
+                      <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest bg-blue-500/10 px-3 py-1 rounded-full">
+                        Selected: {MONTHS[selectedMonth]} {selectedYear}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {timelineType === 'DATE' && (
+                  <div className="space-y-4">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Select Target Date</label>
+                    <Input 
+                      type="date" 
+                      className="bg-slate-950 border-slate-800 h-12 rounded-xl"
+                      value={timelineStart}
+                      onChange={(e) => setTimelineStart(e.target.value)}
+                    />
+                  </div>
+                )}
+                {timelineType === 'RELATIVE' && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Start Date</label>
+                      <Input 
+                        type="date" 
+                        className="bg-slate-950 border-slate-800 h-12 rounded-xl"
+                        value={timelineStart}
+                        onChange={(e) => setTimelineStart(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Duration</label>
+                      <select 
+                        className="w-full bg-slate-950 border border-slate-800 h-12 rounded-xl px-4 text-sm text-slate-300 focus:ring-2 focus:ring-blue-500/20 outline-none"
+                        value={timelineDuration}
+                        onChange={(e) => setTimelineDuration(e.target.value)}
+                      >
+                        <option value="1 week">1 Week</option>
+                        <option value="2 weeks">2 Weeks</option>
+                        <option value="1 month">1 Month</option>
+                        <option value="3 months">3 Months</option>
+                        <option value="6 months">6 Months</option>
+                        <option value="1 year">1 Year</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+                {timelineType === 'RANGE' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">From</label>
+                      <Input 
+                        type="date" 
+                        className="bg-slate-950 border-slate-800 h-12 rounded-xl"
+                        value={timelineStart}
+                        onChange={(e) => setTimelineStart(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">To</label>
+                      <Input 
+                        type="date" 
+                        className="bg-slate-950 border-slate-800 h-12 rounded-xl"
+                        value={timelineEnd}
+                        onChange={(e) => setTimelineEnd(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -403,14 +546,14 @@ export default function ProjectsPage() {
           {/* Footer Actions */}
           <div className="flex items-center justify-between pt-8 mt-4 border-t border-slate-800/50">
             <button 
-              onClick={step === 1 ? resetModal : () => setStep(1)}
+              onClick={step === 1 ? resetModal : () => setStep(step - 1)}
               className="px-6 py-2.5 text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2"
             >
               {step === 1 ? 'Cancel' : <><ArrowLeft size={16} /> Back</>}
             </button>
             
             <button 
-              onClick={step === 1 ? () => setStep(2) : handleCreateProject}
+              onClick={step < 3 ? () => setStep(step + 1) : handleCreateProject}
               disabled={step === 1 && !newProjectName.trim()}
               className={`px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
                 step === 1 && !newProjectName.trim() 
@@ -418,7 +561,7 @@ export default function ProjectsPage() {
                   : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95'
               }`}
             >
-              {step === 1 ? <>Next Step <ArrowRight size={16} /></> : 'Create Project'}
+              {step < 3 ? <>Next Step <ArrowRight size={16} /></> : 'Create Project'}
             </button>
           </div>
         </div>
