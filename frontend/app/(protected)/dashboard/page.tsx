@@ -179,6 +179,10 @@ export default function DashboardPage() {
                   }
 
                   return (
+                      <Link 
+                      href={`/documents/${alert.relatedDocId}`}
+                      className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
+                    >
                      <div key={alert.id} className={`glass-card p-5 ${border} ${bg} relative group`} style={{ animationDelay: `${i * 100}ms` }}>
                         <div className="flex gap-4">
                            <div className={`mt-1 ${iconColor}`}>
@@ -194,6 +198,7 @@ export default function DashboardPage() {
                            </div>
                         </div>
                      </div>
+                     </Link>
                   )
                })
             )}
