@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload as UploadIcon, File as FileIcon, CheckCircle, Scale } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -11,8 +11,21 @@ export default function LawIntelPage() {
   const [dragActive, setDragActive] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'extracted' | 'error'>('idle')
+  const [whatsNew, setWhatsNew] = useState<string | null>(null)
+  const [fetchingNews, setFetchingNews] = useState(true)
   const { showToast } = useToast()
   const router = useRouter()
+
+  useEffect(() => {
+    api.get('/api/scraper/whats-new')
+      .then(res => {
+        if (res.success && res.content) {
+          setWhatsNew(res.content)
+        }
+      })
+      .catch(console.error)
+      .finally(() => setFetchingNews(false))
+  }, [])
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -153,6 +166,29 @@ export default function LawIntelPage() {
               </div>
             )}
           </div>
+        )}
+      </div>
+
+      {/* Latest Government Announcements */}
+      <div className="mt-12 glass-card p-8 rounded-xl border border-white/10">
+        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          <Scale size={20} className="text-blue-400" />
+          Latest Regulatory Announcements
+        </h2>
+        
+        {fetchingNews ? (
+          <div className="space-y-3">
+            <div className="skeleton h-4 w-3/4" />
+            <div className="skeleton h-4 w-full" />
+            <div className="skeleton h-4 w-5/6" />
+          </div>
+        ) : whatsNew ? (
+          <div 
+            className="prose prose-invert prose-sm max-w-none text-slate-300 [&>ul]:list-disc [&>ul]:pl-5 [&>ul>li]:mb-2 [&>ul>li>strong]:text-white"
+            dangerouslySetInnerHTML={{ __html: whatsNew }} 
+          />
+        ) : (
+          <p className="text-slate-500 italic">No recent announcements found.</p>
         )}
       </div>
     </div>

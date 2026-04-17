@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import fs from 'fs'
+import scraperRoutes from './routes/scraper'
 
 dotenv.config()
 
@@ -318,6 +319,9 @@ app.get('/api/logs', async (req: Request, res: Response) => {
   })
   res.json({ logs })
 })
+
+// === SCRAPER API ===
+app.use('/api/scraper', scraperRoutes)
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {
