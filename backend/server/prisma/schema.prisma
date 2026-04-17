@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Document {
+  id               String   @id @default(uuid())
+  fileName         String
+  fileType         String   @default("application/pdf")
+  filePath         String   // physical path in ./uploads
+  category         String   @default("INVOICE")
+  status           String   @default("UPLOADED")
+  // UPLOADED → EXTRACTING → EXTRACTED → VERIFYING → VERIFIED → FLAGGED
+  extractedData    String?  // JSON string
+  complianceScore  Int?
+  complianceReport String?  // JSON string
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Alert {
+  id           String    @id @default(uuid())
+  type         String    // DEADLINE | LAW_CHANGE | FLAGGED_DOC | SYSTEM
+  severity     String    // critical | warning | info
+  title        String
+  message      String
+  relatedDocId String?   // References Document
+  isRead       Boolean   @default(false)
+  deadline     DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model LawUpdate {
+  id            String    @id @default(uuid())
+  title         String
+  text          String
+  summary       String
+  category      String    // GST | LABOR | MCA | INCOME_TAX
+  section       String?
+  tags          String?   // JSON array
+  sourceUrl     String?
+  effectiveDate DateTime?
+  vectorId      String?   // Reference to Qdrant point ID
+  createdAt     DateTime  @default(now())
+}
