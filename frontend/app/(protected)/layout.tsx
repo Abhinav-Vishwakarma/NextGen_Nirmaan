@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { LayoutDashboard, Folder, FileText, Bell, Scale, Activity } from 'lucide-react'
 import { ToastProvider } from '@/components/ui/Toast'
 
+import { UserSelector } from '@/components/layout/UserSelector'
+
 type ProtectedLayoutProps = {
   children: ReactNode
 }
@@ -52,9 +54,7 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps): JSX
           <header className="h-16 border-b border-[#ffffff14] bg-[#0a0a0f] flex items-center px-8 shrink-0">
             <div className="flex-1" />
             <div className="flex items-center gap-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm">
-                AD
-              </div>
+              <UserSelector />
             </div>
           </header>
 
