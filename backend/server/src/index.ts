@@ -139,6 +139,7 @@ app.get('/api/documents', async (req, res) => {
         status: true,
         complianceScore: true,
         createdAt: true,
+        uploadedBy: true,
       },
     })
     res.json({ documents })

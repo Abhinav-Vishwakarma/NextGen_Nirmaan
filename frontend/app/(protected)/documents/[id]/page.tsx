@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react'
 import { api } from '@/lib/api'
-import { ArrowLeft, CheckCircle, AlertTriangle, Info, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, CheckCircle, AlertTriangle, Info, ShieldCheck, User } from 'lucide-react'
 import { useToast } from '@/hooks/useToast'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 
@@ -137,9 +137,20 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-2xl font-bold text-white mb-2">{doc.fileName}</h1>
-          <p className="text-slate-400 text-sm">Status: 
-              <span className="px-2 py-1 mx-2 bg-white/10 rounded-md text-white">{doc.status}</span>
-          </p>
+          <div className="flex items-center gap-4 text-slate-400 text-sm">
+            <p>
+              Status: <span className="px-2 py-1 ml-2 bg-white/10 rounded-md text-white">{doc.status}</span>
+            </p>
+            {doc.uploadedBy && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-slate-600"></span>
+                <p className="flex items-center gap-1.5 text-blue-400">
+                  <User size={14} />
+                  <span>{doc.uploadedBy}</span>
+                </p>
+              </>
+            )}
+          </div>
         </div>
         
         {(doc.status === 'EXTRACTED' || doc.status === 'UPLOADED') && (

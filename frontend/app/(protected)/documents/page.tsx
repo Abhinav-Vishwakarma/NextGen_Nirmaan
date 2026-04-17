@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { getStatusColor, getStatusLabel, getScoreColor, formatRelativeTime } from '@/lib/utils'
+import { User } from 'lucide-react'
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([])
@@ -32,10 +33,11 @@ export default function DocumentsPage() {
           <thead className="bg-white/5 text-slate-400 font-medium border-b border-white/5">
             <tr>
               <th className="px-6 py-4">File Name</th>
+              <th className="px-6 py-4">Uploaded By</th>
               <th className="px-6 py-4">Type</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 text-center">Score</th>
-              <th className="px-6 py-4">Uploaded</th>
+              <th className="px-6 py-4">Date</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -43,6 +45,7 @@ export default function DocumentsPage() {
               [1, 2, 3].map(i => (
                 <tr key={i}>
                   <td className="px-6 py-4"><div className="skeleton h-4 w-48" /></td>
+                  <td className="px-6 py-4"><div className="skeleton h-4 w-24" /></td>
                   <td className="px-6 py-4"><div className="skeleton h-4 w-16" /></td>
                   <td className="px-6 py-4"><div className="skeleton h-6 w-24 rounded-full" /></td>
                   <td className="px-6 py-4"><div className="skeleton h-4 w-8 mx-auto" /></td>
@@ -51,7 +54,7 @@ export default function DocumentsPage() {
               ))
             ) : documents.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                   No documents found. Upload your first invoice.
                 </td>
               </tr>
@@ -63,6 +66,16 @@ export default function DocumentsPage() {
                   onClick={() => window.location.href = `/documents/${doc.id}`}
                 >
                   <td className="px-6 py-4 font-medium text-white">{doc.fileName}</td>
+                  <td className="px-6 py-4">
+                    {doc.uploadedBy ? (
+                      <div className="flex items-center gap-2 text-slate-300">
+                        <User size={14} className="text-blue-400 opacity-70" />
+                        <span>{doc.uploadedBy}</span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-500 italic">Unknown</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">{doc.category}</td>
                   <td className="px-6 py-4">
                     <span className={`badge ${getStatusColor(doc.status)}`}>
