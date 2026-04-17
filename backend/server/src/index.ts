@@ -244,6 +244,56 @@ app.post('/api/documents/upload', upload.single('file'), async (req: Request, re
   }
 })
 
+// Run Ingestion (OCR) on an existing document
+app.post('/api/documents/:id/ingest', async (req, res) => {
+  const { id } = req.params
+  try {
+    const doc = await prisma.document.findUnique({ where: { id: id as string }})
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' })
+    }
+
+    // 1. Update status
+    await prisma.document.update({
+      where: { id: id as string },
+      data: { status: 'EXTRACTING' }
+    })
+
+    // 2. Call AI Server for OCR
+    const aiServerUrl = process.env.AI_SERVER_URL || 'http://localhost:5000'
+    const fullPath = path.join(uploadsDir, doc.filePath)
+    
+    const ocrResponse = await fetch(`${aiServerUrl}/api/ai/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filePath: fullPath,
+        mimeType: doc.fileType
+      })
+    })
+
+    if (!ocrResponse.ok) {
+        throw new Error(`AI Extraction failed: ${await ocrResponse.text()}`)
+    }
+
+    const ocrData = await ocrResponse.json()
+    
+    // 3. Update document with extracted data
+    const updatedDoc = await prisma.document.update({
+        where: { id: id as string },
+        data: {
+            status: 'EXTRACTED',
+            extractedData: JSON.stringify(ocrData.extractedData)
+        }
+    })
+
+    res.json(updatedDoc)
+  } catch (error) {
+    console.error('Ingestion Error:', error)
+    res.status(500).json({ error: 'Ingestion failed' })
+  }
+})
+
 // Proxy pass verification to AI Server
 app.post('/api/documents/:id/verify', async (req, res) => {
   const { id } = req.params

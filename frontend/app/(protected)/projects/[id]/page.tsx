@@ -18,7 +18,12 @@ import {
   Edit,
   Save,
   Search,
-  Plus
+  Plus,
+  Activity,
+  Cpu,
+  Gauge,
+  Sparkles,
+  ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
@@ -33,6 +38,10 @@ export default function ProjectDetailsPage() {
   const [project, setProject] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   
+  // Audit states
+  const [isAuditing, setIsAuditing] = useState(false)
+  const [auditStatus, setAuditStatus] = useState<Record<string, 'idle' | 'processing' | 'verifying' | 'done' | 'error'>>({})
+
   // Edit Compliance states
   const [isEditingCompliances, setIsEditingCompliances] = useState(false)
   const [tempCompliances, setTempCompliances] = useState<any[]>([])
@@ -104,6 +113,43 @@ export default function ProjectDetailsPage() {
     } finally {
       setIsSearching(false)
     }
+  }
+
+  const runProjectAudit = async () => {
+    if (!project.documents || project.documents.length === 0) {
+      showToast({ title: 'No documents to audit', type: 'warning' })
+      return
+    }
+
+    setIsAuditing(true)
+    showToast({ title: 'Starting AI Compliance Audit', message: `Processing ${project.documents.length} documents...`, type: 'info' })
+
+    const docsToProcess = project.documents.filter((d: any) => d.status !== 'VERIFIED' && d.status !== 'FLAGGED')
+    
+    for (const doc of docsToProcess) {
+      setAuditStatus(prev => ({ ...prev, [doc.id]: 'processing' }))
+      try {
+        // 1. Ingest if needed
+        if (doc.status === 'UPLOADED' || doc.status === 'EXTRACTING') {
+          await api.post(`/api/documents/${doc.id}/ingest`, {})
+        }
+
+        // 2. Verify
+        setAuditStatus(prev => ({ ...prev, [doc.id]: 'verifying' }))
+        await api.post(`/api/documents/${doc.id}/verify`, {
+          // Could pass frameworks here if AI server supported it
+        })
+
+        setAuditStatus(prev => ({ ...prev, [doc.id]: 'done' }))
+      } catch (error) {
+        console.error(`Audit failed for ${doc.id}:`, error)
+        setAuditStatus(prev => ({ ...prev, [doc.id]: 'error' }))
+      }
+    }
+
+    setIsAuditing(false)
+    fetchProjectDetails() // Final refresh
+    showToast({ title: 'Audit Completed', message: 'All documents have been processed by AI.', type: 'success' })
   }
 
   const toggleCompliance = (compliance: any) => {
@@ -402,58 +448,108 @@ export default function ProjectDetailsPage() {
             </div>
           </section>
 
-          {/* Uploaded Documents List */}
+          {/* Project Documents List */}
           <section className="bg-slate-900/40 backdrop-blur-sm border border-slate-800 rounded-3xl p-8 space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-purple-500/10 rounded-xl text-purple-500">
                   <FileText size={20} />
                 </div>
                 <h2 className="text-xl font-bold text-white">Project Documents</h2>
+                <span className="text-[10px] bg-slate-800 text-slate-400 px-3 py-1 rounded-full font-black uppercase tracking-widest">
+                  {project.documents?.length || 0} Total
+                </span>
               </div>
-              <span className="text-xs bg-slate-800 text-slate-400 px-3 py-1 rounded-full font-bold">
-                {project.documents?.length || 0} Total
-              </span>
+              
+              {project.documents?.length > 0 && (
+                <button 
+                  onClick={runProjectAudit}
+                  disabled={isAuditing}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-95 group"
+                >
+                  {isAuditing ? (
+                    <Activity size={16} className="animate-pulse" />
+                  ) : (
+                    <Sparkles size={16} className="group-hover:rotate-12 transition-transform" />
+                  )}
+                  {isAuditing ? 'Audit in Progress...' : 'Run AI Compliance Audit'}
+                </button>
+              )}
             </div>
 
             <div className="space-y-3">
               {project.documents && project.documents.length > 0 ? (
-                project.documents.map((doc: any) => (
-                  <div key={doc.id} className="group flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-2xl hover:bg-slate-900 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 bg-slate-900 rounded-xl text-slate-400 group-hover:text-blue-400 transition-colors">
-                        <FileText size={20} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-white">{doc.fileName}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                            <Clock size={10} /> {new Date(doc.createdAt).toLocaleDateString()}
-                          </span>
-                          <span className="text-[10px] text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                            <User size={10} /> {doc.uploadedBy}
-                          </span>
+                project.documents.map((doc: any) => {
+                  const status = auditStatus[doc.id] || 'idle'
+                  return (
+                    <div key={doc.id} className="group flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-2xl hover:bg-slate-900/50 hover:border-blue-500/30 transition-all gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-slate-900 rounded-xl text-slate-500 group-hover:text-blue-400 transition-colors shadow-inner">
+                          {status === 'processing' || status === 'verifying' ? (
+                            <Cpu size={20} className="animate-spin text-blue-500" />
+                          ) : (
+                            <FileText size={20} />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-white group-hover:text-blue-100 transition-colors">{doc.fileName}</p>
+                          <div className="flex items-center gap-4 mt-1.5">
+                            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                              <Clock size={10} className="text-slate-600" /> {new Date(doc.createdAt).toLocaleDateString()}
+                            </span>
+                            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5">
+                              <User size={10} className="text-slate-600" /> {doc.uploadedBy}
+                            </span>
+                          </div>
                         </div>
                       </div>
+
+                      <div className="flex items-center gap-3 ml-auto md:ml-0">
+                        {/* Progress or Score */}
+                        {status === 'processing' && (
+                          <span className="text-[10px] font-black uppercase text-blue-500 animate-pulse tracking-widest">Ingesting...</span>
+                        )}
+                        {status === 'verifying' && (
+                          <span className="text-[10px] font-black uppercase text-purple-500 animate-pulse tracking-widest">AI Validating...</span>
+                        )}
+                        
+                        {doc.complianceScore !== null && (
+                          <div className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+                            <Gauge size={14} className={doc.complianceScore > 80 ? 'text-green-500' : doc.complianceScore > 50 ? 'text-yellow-500' : 'text-red-500'} />
+                            <span className="text-xs font-black text-white">{doc.complianceScore}%</span>
+                          </div>
+                        )}
+
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-md border ${
+                          doc.status === 'VERIFIED' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                          doc.status === 'FLAGGED' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                          status !== 'idle' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                          'bg-slate-800/50 text-slate-500 border-slate-700'
+                        }`}>
+                          {status === 'processing' ? 'EXTRACTING' : status === 'verifying' ? 'VERIFYING' : doc.status}
+                        </span>
+
+                        {doc.complianceScore !== null && (
+                          <Link 
+                            href={`/documents/${doc.id}`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
+                          >
+                            View Analysis
+                            <ChevronRight size={12} />
+                          </Link>
+                        )}
+
+                        <button className="p-2 text-slate-500 hover:text-white transition-colors">
+                          <ExternalLink size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border ${
-                        doc.status === 'VERIFIED' ? 'bg-green-500/5 text-green-400 border-green-500/20' :
-                        doc.status === 'FLAGGED' ? 'bg-red-500/5 text-red-400 border-red-500/20' :
-                        'bg-blue-500/5 text-blue-400 border-blue-500/20'
-                      }`}>
-                        {doc.status}
-                      </span>
-                      <button className="p-2 text-slate-500 hover:text-white transition-colors">
-                        <ExternalLink size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               ) : (
-                <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl">
-                  <FileText size={32} className="mx-auto text-slate-800 mb-3" />
-                  <p className="text-sm text-slate-500">No documents uploaded yet.</p>
+                <div className="text-center py-16 border-2 border-dashed border-slate-800 rounded-3xl group-hover:border-slate-700 transition-colors">
+                  <FileText size={48} className="mx-auto text-slate-800 mb-4" />
+                  <p className="text-slate-500 font-medium tracking-tight">No documents have been attached to this project record.</p>
                 </div>
               )}
             </div>
@@ -462,12 +558,12 @@ export default function ProjectDetailsPage() {
 
         {/* Right Column: Upload Tool */}
         <div className="space-y-6">
-          <section className="bg-blue-600/5 border border-blue-500/20 rounded-3xl p-6 sticky top-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
-                <Upload size={20} />
+          <section className="bg-blue-600/5 border border-blue-500/20 rounded-3xl p-8 sticky top-8 shadow-2xl shadow-blue-500/5">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-500">
+                <Upload size={22} />
               </div>
-              <h2 className="text-xl font-bold text-white">Upload Document</h2>
+              <h2 className="text-xl font-bold text-white tracking-tight">Upload Document</h2>
             </div>
 
             <div className="space-y-6">
@@ -479,31 +575,36 @@ export default function ProjectDetailsPage() {
                   onChange={handleFileChange}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
-                <div className="border-2 border-dashed border-slate-800 group-hover:border-blue-500/50 group-hover:bg-blue-500/5 transition-all rounded-2xl p-8 text-center space-y-3">
-                  <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center mx-auto text-slate-500 group-hover:text-blue-500 transition-colors">
-                    <Upload size={20} />
+                <div className="border-2 border-dashed border-slate-800 group-hover:border-blue-500/50 group-hover:bg-blue-500/10 transition-all rounded-[2rem] p-10 text-center space-y-4 bg-slate-950/50">
+                  <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto text-slate-500 group-hover:text-blue-500 group-hover:scale-110 transition-all duration-300 shadow-inner">
+                    <Upload size={24} />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-300">Drop files here</p>
-                    <p className="text-xs text-slate-500 mt-1">or click to browse</p>
+                    <p className="text-xs text-slate-500 mt-2 font-medium tracking-wide">Secure PDF, PNG, JPG ingestion</p>
                   </div>
                 </div>
               </div>
 
               {/* Selected Files List */}
               {selectedFiles.length > 0 && (
-                <div className="space-y-3 animate-in slide-in-from-bottom-2 duration-300">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-1">Selected for ingestion</p>
+                <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Queue for ingestion</p>
+                    <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold">{selectedFiles.length} Files</span>
+                  </div>
                   <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                     {selectedFiles.map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-900/80 border border-slate-800 rounded-xl group animate-in slide-in-from-right-2 duration-200">
+                      <div key={idx} className="flex items-center justify-between p-3 bg-slate-900/50 border border-slate-800 rounded-2xl group animate-in slide-in-from-right-4 duration-300">
                         <div className="flex items-center gap-3 overflow-hidden">
-                          <FileText size={16} className="text-blue-500 shrink-0" />
-                          <span className="text-xs text-slate-300 truncate font-medium">{file.name}</span>
+                          <div className="w-8 h-8 rounded-lg bg-slate-950 flex items-center justify-center text-blue-500">
+                            <FileText size={16} />
+                          </div>
+                          <span className="text-xs text-slate-300 truncate font-bold">{file.name}</span>
                         </div>
                         <button 
                           onClick={() => removeSelectedFile(idx)}
-                          className="p-1 hover:bg-red-500/20 hover:text-red-400 text-slate-500 rounded-lg transition-all"
+                          className="p-1.5 hover:bg-red-500/20 hover:text-red-400 text-slate-600 rounded-lg transition-all"
                         >
                           <X size={14} />
                         </button>
@@ -514,18 +615,18 @@ export default function ProjectDetailsPage() {
                   <Button 
                     onClick={handleUploadSubmit}
                     disabled={isUploading}
-                    className="w-full h-12 bg-blue-600 hover:bg-blue-500 font-bold text-sm shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 mt-4"
+                    className="w-full h-14 bg-blue-600 hover:bg-blue-500 font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 flex items-center justify-center gap-3 mt-4 rounded-2xl active:scale-[0.98] transition-all"
                   >
                     {isUploading ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <span   className='flex'>
+                      <span className='flex items-center gap-2'>
                         <CheckCircle2 size={18} /> Add to Project
                       </span>
                     )}
                   </Button>
-                  <p className="text-[10px] text-center text-slate-500">
-                    By submitting, you agree to our AI processing of these documents for compliance validation.
+                  <p className="text-[9px] text-center text-slate-500 leading-relaxed font-medium uppercase tracking-tighter">
+                    Encrypted ingestion • Automated OCR • Legal validation
                   </p>
                 </div>
               )}
@@ -533,19 +634,6 @@ export default function ProjectDetailsPage() {
           </section>
         </div>
       </div>
-
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #1e293b;
-          border-radius: 10px;
-        }
-      `}</style>
     </div>
   )
 }
