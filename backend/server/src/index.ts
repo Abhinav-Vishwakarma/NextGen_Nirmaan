@@ -308,6 +308,36 @@ app.post('/api/documents/:id/verify', async (req, res) => {
 })
 
 
+app.get("/api/ai/laws", async (req: Request, res: Response) => {
+  try {
+    const aiServerUrl = process.env.AI_SERVER_URL || "http://localhost:5000"
+    const aiRes = await fetch(`${aiServerUrl}/api/ai/laws`)
+    if (!aiRes.ok) throw new Error(await aiRes.text())
+    const data = await aiRes.json()
+    res.json(data)
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch laws" })
+  }
+})
+
+app.post("/api/ai/search-laws", async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body
+    const aiServerUrl = process.env.AI_SERVER_URL || "http://localhost:5000"
+    const aiRes = await fetch(`${aiServerUrl}/api/ai/search-laws`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query })
+    })
+    if (!aiRes.ok) throw new Error(await aiRes.text())
+    const data = await aiRes.json()
+    res.json(data)
+  } catch (error) {
+    res.status(500).json({ error: "Search failed" })
+  }
+})
+
+
 // Serve uploaded files statically
 app.use('/api/files', express.static(uploadsDir))
 

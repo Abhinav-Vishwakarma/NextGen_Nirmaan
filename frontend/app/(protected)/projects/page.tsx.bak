@@ -1,0 +1,230 @@
+"use client"
+
+import { useState } from 'react'
+import { Plus, Folder, Search, CheckCircle, X } from 'lucide-react'
+import Link from 'next/link'
+import { Modal } from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Input'
+import { Button } from '@/components/ui/Button'
+import { api } from '@/lib/api'
+
+// Dummy projects data
+const initialProjects = [
+  { id: 1, name: 'Metro Line Extension', status: 'Active', lastUpdated: '2 hours ago' },
+  { id: 2, name: 'Highway Renovation', status: 'Planning', lastUpdated: '1 day ago' },
+  { id: 3, name: 'City Center Bridge', status: 'Completed', lastUpdated: '5 days ago' },
+]
+
+export default function ProjectsPage() {
+  const [projects, setProjects] = useState(initialProjects)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [newProjectName, setNewProjectName] = useState('')
+  const [clientName, setClientName] = useState('')
+  
+  // Compliance search states
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [selectedCompliances, setSelectedCompliances] = useState<any[]>([])
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return
+    setIsSearching(true)
+    try {
+      const res = await api.post('/api/ai/search-laws', { query: searchQuery })
+      setSearchResults(res.results || [])
+    } catch (error) {
+      console.error('Search failed:', error)
+      alert('Failed to search compliances')
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const toggleCompliance = (compliance: any) => {
+    const isSelected = selectedCompliances.some(c => c.payload.section === compliance.payload.section)
+    if (isSelected) {
+      setSelectedCompliances(prev => prev.filter(c => c.payload.section !== compliance.payload.section))
+    } else {
+      setSelectedCompliances(prev => [...prev, compliance])
+    }
+  }
+
+  const handleCreateProject = () => {
+    if (!newProjectName.trim()) {
+      alert("Project name is required")
+      return
+    }
+    
+    const newProject = {
+      id: projects.length + 1,
+      name: newProjectName,
+      status: 'Planning',
+      lastUpdated: 'Just now'
+    }
+    setProjects([newProject, ...projects])
+    setIsModalOpen(false)
+    setNewProjectName('')
+    setClientName('')
+    setSearchQuery('')
+    setSearchResults([])
+    setSelectedCompliances([])
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100 mb-1 flex items-center gap-2">
+            <Folder className="text-blue-500" /> Projects
+          </h1>
+          <p className="text-slate-400 text-sm">Manage and track your active projects.</p>
+        </div>
+        
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+        >
+          <Plus size={18} />
+          New Project
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {projects.map((project) => (
+          <div key={project.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-slate-700 transition-colors">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-blue-500/10 rounded-lg">
+                <Folder className="text-blue-500" size={24} />
+              </div>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                project.status === 'Active' ? 'bg-green-500/10 text-green-400' :
+                project.status === 'Completed' ? 'bg-slate-800 text-slate-300' :
+                'bg-yellow-500/10 text-yellow-400'
+              }`}>
+                {project.status}
+              </span>
+            </div>
+            
+            <h3 className="text-lg font-bold text-slate-100 mb-1">{project.name}</h3>
+            <p className="text-sm text-slate-400 mb-4">Updated {project.lastUpdated}</p>
+            
+            <div className="pt-4 border-t border-slate-800 flex justify-between items-center">
+              <Link href={`/projects/${project.id}`} className="text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium">
+                View Details
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create New Project">
+        <div className="space-y-6 text-slate-300">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Project Name</label>
+              <Input 
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="e.g. Metro Line Extension"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Client</label>
+              <Input 
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="e.g. Ministry of Transport"
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-800 pt-6">
+            <label className="block text-sm font-medium mb-2 flex items-center justify-between">
+              <span>Search Compliances (Qdrant Vector DB)</span>
+              <span className="text-xs text-blue-400 font-semibold">{selectedCompliances.length} Selected</span>
+            </label>
+            
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="e.g. Environmental impact laws..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearch()
+                    }
+                  }}
+                />
+              </div>
+              <Button onClick={handleSearch} disabled={isSearching} className="gap-2 shrink-0">
+                <Search size={16} /> 
+                {isSearching ? 'Searching...' : 'Search'}
+              </Button>
+            </div>
+
+            {/* Selected Compliances */}
+            {selectedCompliances.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {selectedCompliances.map((c, i) => (
+                  <span key={i} className="inline-flex items-center gap-2 bg-blue-500/10 text-blue-300 text-xs px-2 py-1 rounded-md">
+                    {c.payload.section}
+                    <X 
+                      size={14} 
+                      className="cursor-pointer hover:text-blue-100" 
+                      onClick={() => toggleCompliance(c)} 
+                    />
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Search Results */}
+            <div className="mt-4 max-h-60 overflow-y-auto space-y-2 -mr-2 pr-2">
+              {isSearching && <div className="text-center text-slate-400 py-4">Searching...</div>}
+              
+              {!isSearching && searchResults.length > 0 && (
+                searchResults.map((result, idx) => {
+                  const isSelected = selectedCompliances.some(c => c.payload.section === result.payload.section);
+                  return (
+                    <div 
+                      key={idx} 
+                      className={`p-3 text-sm rounded-lg border flex justify-between items-start cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'bg-blue-500/20 border-blue-500/40' 
+                          : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                      }`}
+                      onClick={() => toggleCompliance(result)}
+                    >
+                      <div className="flex-1 pr-4">
+                        <div className={`font-semibold flex items-center gap-2 ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
+                          {result.payload.section}
+                          {isSelected && <CheckCircle size={16} />}
+                        </div>
+                        <div className="text-slate-400 text-xs mt-1 line-clamp-2">{result.payload.title}</div>
+                      </div>
+                      <div className="text-xs text-green-400 font-mono font-medium pt-1 whitespace-nowrap">
+                        {Math.round(result.score * 100)}%
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              
+              {!isSearching && searchResults.length === 0 && searchQuery && (
+                 <div className="text-center text-sm text-slate-500 py-4">No results found for "{searchQuery}".</div>
+              )}
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-slate-800 mt-6 flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateProject}>Create Project</Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  )
+}

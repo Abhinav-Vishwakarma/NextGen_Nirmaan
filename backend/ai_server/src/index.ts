@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { geminiPro, embedText } from './gemini'
-import { searchSimilar, ensureCollection } from './qdrant'
+import { searchSimilar, ensureCollection, listPoints } from './qdrant'
 import fs from 'fs'
 
 dotenv.config()
@@ -16,6 +16,15 @@ ensureCollection()
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'AI Agent Server' })
+})
+
+app.get('/api/ai/laws', async (req: Request, res: Response) => {
+  try {
+    const results = await listPoints(20)
+    res.json({ results })
+  } catch (error) {
+    res.status(500).json({ error: "Failed to list laws" })
+  }
 })
 
 // === OCR EXTRACTION ===
@@ -89,6 +98,19 @@ Return ONLY valid JSON (no markdown fences). Use null when fields are not applic
     } else {
         res.status(500).json({ error: 'OCR Extraction failed' })
     }
+  }
+})
+
+
+app.post("/api/ai/search-laws", async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body
+    if (!query) return res.status(400).json({ error: "query required" })
+    const vector = await embedText(query)
+    const results = await searchSimilar(vector, 10)
+    res.json({ results })
+  } catch (error) {
+    res.status(500).json({ error: "Failed to search laws" })
   }
 })
 

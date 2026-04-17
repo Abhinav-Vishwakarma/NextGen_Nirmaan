@@ -1,6 +1,6 @@
 import type { JSX, ReactNode } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Upload, FileText, Bell, Scale, Activity } from 'lucide-react'
+import { LayoutDashboard, Folder, FileText, Bell, Scale, Activity } from 'lucide-react'
 import { ToastProvider } from '@/components/ui/Toast'
 
 type ProtectedLayoutProps = {
@@ -23,9 +23,9 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps): JSX
               <LayoutDashboard size={18} className="text-slate-400" />
               Dashboard
             </Link>
-            <Link href="/upload" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm font-medium">
-              <Upload size={18} className="text-slate-400" />
-              Upload
+            <Link href="/projects" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm font-medium">
+              <Folder size={18} className="text-slate-400" />
+              Projects
             </Link>
             <Link href="/documents" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm font-medium">
               <FileText size={18} className="text-slate-400" />
