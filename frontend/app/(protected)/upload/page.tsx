@@ -15,22 +15,27 @@ export default function UploadPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const { showToast } = useToast()
 
-  const handleDrop = async (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDragActive(false)
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      await processFile(e.dataTransfer.files[0])
+      setFile(e.dataTransfer.files[0])
     }
   }
 
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      await processFile(e.target.files[0])
+      setFile(e.target.files[0])
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (file) {
+      await processFile(file)
     }
   }
 
   const processFile = async (selectedFile: File) => {
-    setFile(selectedFile)
     setStatus('uploading')
     setErrorMsg('')
 
@@ -79,49 +84,79 @@ export default function UploadPage() {
         {/* Upload Zone */}
         <div 
           className={cn(
-            "glass-card p-12 text-center rounded-xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center",
-            dragActive ? "border-blue-500 bg-blue-500/5" : "border-[#ffffff14]",
+            "glass-card p-12 text-center rounded-xl border-2 transition-all duration-200 flex flex-col items-center justify-center",
+            (!file || status === 'idle') && !dragActive ? "border-dashed border-[#ffffff14]" : 
+            dragActive ? "border-dashed border-blue-500 bg-blue-500/5" : "border-[#ffffff14]",
             status === 'uploading' && "opacity-50 pointer-events-none"
           )}
           onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
           onDragLeave={() => setDragActive(false)}
           onDrop={handleDrop}
         >
-          <input 
-             type="file" 
-             id="file-upload" 
-             className="hidden" 
-             accept="application/pdf,image/png,image/jpeg,image/webp" 
-             onChange={handleChange} 
-          />
-          
-          <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6">
-            <UploadIcon size={24} className={dragActive ? "text-blue-400" : "text-slate-400"} />
-          </div>
-          
-          <h3 className="text-lg font-medium text-white mb-2">
-            {status === 'uploading' ? 'Uploading & Extracting...' : 'Drop your invoice here'}
-          </h3>
-          
-          {status === 'idle' && (
-             <p className="text-sm text-slate-400 mb-6 px-12">
-               Support for PDF, PNG, JPG files up to 10MB
-             </p>
-          )}
+          {!file || status === 'error' ? (
+            <>
+              <input 
+                type="file" 
+                id="file-upload" 
+                className="hidden" 
+                accept="application/pdf,image/png,image/jpeg,image/webp" 
+                onChange={handleChange} 
+              />
+              
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6">
+                <UploadIcon size={24} className={dragActive ? "text-blue-400" : "text-slate-400"} />
+              </div>
+              
+              <h3 className="text-lg font-medium text-white mb-2">
+                Drop your invoice here
+              </h3>
+              
+              <p className="text-sm text-slate-400 mb-6 px-12">
+                Support for PDF, PNG, JPG files up to 10MB
+              </p>
 
-          {status === 'idle' && (
-            <label 
-              htmlFor="file-upload" 
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium cursor-pointer transition-colors"
-            >
-              Browse Files
-            </label>
-          )}
+              <label 
+                htmlFor="file-upload" 
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium cursor-pointer transition-colors"
+              >
+                Browse Files
+              </label>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center w-full">
+              <div className="w-20 h-20 rounded-full bg-blue-500/10 flex items-center justify-center mb-6 border border-blue-500/20">
+                <FileIcon size={32} className="text-blue-400" />
+              </div>
+              
+              <h3 className="text-lg font-medium text-white mb-2 line-clamp-1 break-all px-4">{file.name}</h3>
+              <p className="text-slate-400 text-sm mb-8">Ready • {(file.size / 1024 / 1024).toFixed(2)} MB</p>
 
-          {status === 'uploading' && (
-             <div className="w-full max-w-xs h-2 bg-white/10 rounded-full overflow-hidden mt-4">
-                <div className="h-full bg-blue-500 w-1/2 animate-shimmer rounded-full"></div>
-             </div>
+              {status === 'idle' ? (
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => setFile(null)}
+                    className="px-4 py-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors font-medium text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSubmit}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2"
+                  >
+                    <UploadIcon size={16} /> Submit Invoice
+                  </button>
+                </div>
+              ) : status === 'uploading' ? (
+                <div className="w-full max-w-xs h-2 bg-white/10 rounded-full overflow-hidden mt-4">
+                  <div className="h-full bg-blue-500 w-1/2 animate-shimmer rounded-full"></div>
+                </div>
+              ) : status === 'extracted' ? (
+                 <div className="text-emerald-400 flex flex-col items-center gap-2">
+                   <CheckCircle size={32} className="mb-2" />
+                   <span className="font-medium">File Uploaded & Extracted</span>
+                 </div>
+              ) : null}
+            </div>
           )}
         </div>
 
