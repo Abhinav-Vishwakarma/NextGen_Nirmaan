@@ -169,7 +169,7 @@ app.post('/api/documents/upload', upload.single('file'), async (req: Request, re
       return res.status(400).json({ error: 'No file provided' })
     }
 
-    const { category = 'INVOICE' } = req.body
+    const { category = 'INVOICE', uploadedBy } = req.body
     
     // The UUID is the filename without extension, configured in multer
     const fileId = path.parse(file.filename).name
@@ -182,6 +182,7 @@ app.post('/api/documents/upload', upload.single('file'), async (req: Request, re
         fileType: file.mimetype,
         filePath: file.filename, 
         category,
+        uploadedBy,
         status: 'EXTRACTING',
       },
     })

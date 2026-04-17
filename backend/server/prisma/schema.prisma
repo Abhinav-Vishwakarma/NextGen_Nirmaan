@@ -18,6 +18,7 @@ model Document {
   extractedData    String?  // JSON string
   complianceScore  Int?
   complianceReport String?  // JSON string
+  uploadedBy       String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
