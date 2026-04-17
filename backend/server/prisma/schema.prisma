@@ -48,3 +48,11 @@ model LawUpdate {
   vectorId      String?   // Reference to Qdrant point ID
   createdAt     DateTime  @default(now())
 }
+
+model SystemLog {
+  id          String   @id @default(uuid())
+  eventType   String   // DOCUMENT_UPLOADED | AI_CHECK_RUN
+  username    String   // Name of the user performing the action
+  details     String?  // Optional JSON string for extra info
+  createdAt   DateTime @default(now())
+}

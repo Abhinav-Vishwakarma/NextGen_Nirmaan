@@ -188,6 +188,15 @@ app.post('/api/documents/upload', upload.single('file'), async (req: Request, re
       },
     })
 
+    // Log the event
+    await prisma.systemLog.create({
+      data: {
+        eventType: 'DOCUMENT_UPLOADED',
+        username: uploadedBy || 'System',
+        details: JSON.stringify({ documentId: fileId, fileName: file.originalname })
+      }
+    })
+
     // 2. Call AI Server for OCR
     const aiServerUrl = process.env.AI_SERVER_URL || 'http://localhost:5000'
     const fullPath = path.join(uploadsDir, file.filename)
@@ -269,6 +278,15 @@ app.post('/api/documents/:id/verify', async (req, res) => {
          }
      })
 
+     // Log the event
+     await prisma.systemLog.create({
+       data: {
+         eventType: 'AI_CHECK_RUN',
+         username: doc.uploadedBy || 'System',
+         details: JSON.stringify({ documentId: id, fileName: doc.fileName, score: verifyData.complianceScore })
+       }
+     })
+
      if (updated.status === 'FLAGGED') {
          await prisma.alert.create({
              data: {
@@ -292,6 +310,14 @@ app.post('/api/documents/:id/verify', async (req, res) => {
 // Serve uploaded files statically
 app.use('/api/files', express.static(uploadsDir))
 
+
+// === LOGS API ===
+app.get('/api/logs', async (req: Request, res: Response) => {
+  const logs = await prisma.systemLog.findMany({
+    orderBy: { createdAt: 'desc' },
+  })
+  res.json({ logs })
+})
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {
