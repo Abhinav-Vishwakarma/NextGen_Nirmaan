@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from 'react'
 import { api } from '@/lib/api'
 import { ArrowLeft, CheckCircle, AlertTriangle, Info, ShieldCheck } from 'lucide-react'
+import { useToast } from '@/hooks/useToast'
 
 // SVG Gauge Component
 function ScoreGauge({ score }: { score: number }) {
@@ -28,7 +29,7 @@ function ScoreGauge({ score }: { score: number }) {
           cx="64" cy="64" r="45"
           stroke={color} strokeWidth="8" fill="transparent"
           strokeDasharray={circumference}
-          strokeDashoffset={score === 0 ? circumference : offset} // animate to offset later
+          strokeDashoffset={score === 0 ? circumference : offset}
           strokeLinecap="round"
           className="transition-all duration-1000 ease-out"
         />
@@ -46,6 +47,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const [doc, setDoc] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
+  const { showToast } = useToast()
 
   useEffect(() => {
     fetchDoc()
@@ -56,6 +58,11 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       const res = await api.get('/api/documents')
       const target = res.documents.find((d: any) => d.id === id)
       setDoc(target || null)
+      if (!target) {
+        showToast({ type: 'error', title: 'Document not found', message: 'This document could not be loaded.' })
+      }
+    } catch {
+      showToast({ type: 'error', title: 'Failed to load document', message: 'Could not reach the server.' })
     } finally {
       setLoading(false)
     }
@@ -63,12 +70,36 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   const handleVerify = async () => {
     setVerifying(true)
+    showToast({ type: 'info', title: 'Running AI compliance check…', message: 'This may take a few seconds.' })
     try {
        const res = await api.post(`/api/documents/${id}/verify`, {})
-       setDoc(res) // API should return updated doc with complianceReport
-    } catch (e) {
-       console.error("Verification failed", e)
-       alert("Verification failed.")
+       setDoc(res)
+
+       const report = res.complianceReport ? JSON.parse(res.complianceReport) : null
+       const score = report?.complianceScore ?? res.complianceScore
+
+       if (res.status === 'VERIFIED') {
+         showToast({
+           type: 'success',
+           title: `✅ Compliance Passed — Score ${score}`,
+           message: report?.summary || 'Document meets all GST requirements.',
+           duration: 6000,
+         })
+       } else {
+         showToast({
+           type: 'warning',
+           title: `⚠️ Flagged — Score ${score}`,
+           message: report?.summary || 'Compliance issues detected. Review the report.',
+           duration: 7000,
+         })
+       }
+    } catch (e: any) {
+       showToast({
+         type: 'error',
+         title: 'Verification failed',
+         message: e?.message || 'The AI engine encountered an error.',
+         duration: 6000,
+       })
     } finally {
        setVerifying(false)
     }

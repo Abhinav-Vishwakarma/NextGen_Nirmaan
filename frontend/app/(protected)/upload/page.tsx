@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Upload as UploadIcon, File as FileIcon, CheckCircle, AlertCircle } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/hooks/useToast'
 
 export default function UploadPage() {
   const [dragActive, setDragActive] = useState(false)
@@ -12,6 +13,7 @@ export default function UploadPage() {
   const [extractedData, setExtractedData] = useState<any>(null)
   const [docId, setDocId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const { showToast } = useToast()
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault()
@@ -32,6 +34,12 @@ export default function UploadPage() {
     setStatus('uploading')
     setErrorMsg('')
 
+    showToast({
+      type: 'info',
+      title: 'Uploading document…',
+      message: `Extracting data from ${selectedFile.name}`,
+    })
+
     try {
       const formData = new FormData()
       formData.append('file', selectedFile)
@@ -41,9 +49,22 @@ export default function UploadPage() {
       setDocId(uploadRes.id)
       setExtractedData(uploadRes.extractedData)
       setStatus('extracted')
+
+      showToast({
+        type: 'success',
+        title: 'Extraction complete!',
+        message: `Invoice from ${uploadRes.extractedData?.vendor_name || 'unknown vendor'} is ready for compliance check.`,
+      })
     } catch (err: any) {
       setStatus('error')
-      setErrorMsg(err.message || 'Upload failed')
+      const msg = err.message || 'Upload failed'
+      setErrorMsg(msg)
+      showToast({
+        type: 'error',
+        title: 'Upload failed',
+        message: msg,
+        duration: 6000,
+      })
     }
   }
 
