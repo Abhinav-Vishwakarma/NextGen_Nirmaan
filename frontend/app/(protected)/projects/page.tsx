@@ -48,6 +48,17 @@ export default function ProjectsPage() {
     }
   }, [searchQuery, step])
 
+  // Live Search with Debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleSearch()
+      }
+    }, 500) // 500ms debounce
+
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return
     setIsSearching(true)
@@ -317,11 +328,13 @@ export default function ProjectsPage() {
                                   {result.payload.section}
                                 </span>
                               </div>
-                              <div className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
-                                result.score > 0.8 ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
-                              }`}>
-                                {Math.round(result.score * 100)}% Match
-                              </div>
+                              {searchQuery.trim() && (
+                                <div className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md ${
+                                  result.score > 0.8 ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
+                                }`}>
+                                  {Math.round(result.score * 100)}% Match
+                                </div>
+                              )}
                             </div>
                             <p className={`text-xs leading-relaxed line-clamp-2 ${isSelected ? 'text-slate-300' : 'text-slate-500 group-hover:text-slate-400'}`}>
                               {result.payload.title}
