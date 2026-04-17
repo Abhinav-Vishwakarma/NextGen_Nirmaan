@@ -7,8 +7,10 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { api } from '@/lib/api'
+import { useToast } from '@/components/ui/Toast'
 
 export default function ProjectsPage() {
+  const { showToast } = useToast()
   const [projects, setProjects] = useState<any[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [step, setStep] = useState(1)
@@ -124,9 +126,11 @@ export default function ProjectsPage() {
       
       // Refresh list
       await fetchProjects()
+      showToast({ title: 'Project Created', message: `${newProjectName} has been initialized successfully.`, type: 'success' })
       resetModal()
     } catch (error) {
       console.error('Failed to create project:', error)
+      showToast({ title: 'Creation Failed', message: 'Unable to initialize project.', type: 'error' })
     }
   }
 

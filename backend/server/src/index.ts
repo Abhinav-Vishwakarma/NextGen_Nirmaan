@@ -460,6 +460,28 @@ app.post('/api/projects/:id/upload', upload.array('files'), async (req: Request,
   }
 })
 
+app.patch('/api/projects/:id', async (req, res) => {
+  try {
+    const id = req.params.id as string
+    const { name, client, compliances, status } = req.body
+
+    const project = await prisma.project.update({
+      where: { id },
+      data: {
+        name,
+        client,
+        compliances: compliances ? JSON.stringify(compliances) : undefined,
+        status
+      }
+    })
+
+    res.json(project)
+  } catch (error) {
+    console.error('Project Update Error:', error)
+    res.status(500).json({ error: 'Failed to update project' })
+  }
+})
+
 // === SCRAPER API ===
 app.use('/api/scraper', scraperRoutes)
 

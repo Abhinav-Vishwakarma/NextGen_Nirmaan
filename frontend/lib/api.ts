@@ -22,5 +22,14 @@ export const api = {
     })
     if (!res.ok) throw new Error(await res.text())
     return res.json()
+  },
+  patch: async (endpoint: string, body: any) => {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    if (!res.ok) throw new Error(await res.text())
+    return res.json()
   }
 }
