@@ -350,6 +350,52 @@ app.get('/api/logs', async (req: Request, res: Response) => {
   res.json({ logs })
 })
 
+// === PROJECTS API ===
+app.get('/api/projects', async (req, res) => {
+  try {
+    const projects = await prisma.project.findMany({
+      orderBy: { createdAt: 'desc' },
+    })
+    res.json({ projects })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch projects' })
+  }
+})
+
+app.post('/api/projects', async (req, res) => {
+  try {
+    const { name, client, compliances, createdBy } = req.body
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Project name is required' })
+    }
+
+    const project = await prisma.project.create({
+      data: {
+        name,
+        client,
+        compliances: compliances ? JSON.stringify(compliances) : null,
+        createdBy: createdBy || 'Anonymous',
+        status: 'PLANNING'
+      }
+    })
+
+    // Log the event
+    await prisma.systemLog.create({
+      data: {
+        eventType: 'PROJECT_CREATED',
+        username: createdBy || 'Anonymous',
+        details: JSON.stringify({ projectId: project.id, name: project.name })
+      }
+    })
+
+    res.status(201).json(project)
+  } catch (error) {
+    console.error('Project Creation Error:', error)
+    res.status(500).json({ error: 'Failed to create project' })
+  }
+})
+
 // === SCRAPER API ===
 app.use('/api/scraper', scraperRoutes)
 

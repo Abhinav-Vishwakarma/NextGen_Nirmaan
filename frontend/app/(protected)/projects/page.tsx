@@ -8,17 +8,11 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { api } from '@/lib/api'
 
-// Dummy projects data
-const initialProjects = [
-  { id: 1, name: 'Metro Line Extension', status: 'Active', lastUpdated: '2 hours ago', client: 'Ministry of Transport' },
-  { id: 2, name: 'Highway Renovation', status: 'Planning', lastUpdated: '1 day ago', client: 'NHAI' },
-  { id: 3, name: 'City Center Bridge', status: 'Completed', lastUpdated: '5 days ago', client: 'City Council' },
-]
-
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState(initialProjects)
+  const [projects, setProjects] = useState<any[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [step, setStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(true)
   
   // Project details
   const [newProjectName, setNewProjectName] = useState('')
@@ -29,6 +23,23 @@ export default function ProjectsPage() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [selectedCompliances, setSelectedCompliances] = useState<any[]>([])
+
+  // Fetch projects on mount
+  useEffect(() => {
+    fetchProjects()
+  }, [])
+
+  const fetchProjects = async () => {
+    setIsLoading(true)
+    try {
+      const res = await api.get('/api/projects')
+      setProjects(res.projects || [])
+    } catch (error) {
+      console.error('Failed to fetch projects:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Fetch all laws when query is empty
   useEffect(() => {
@@ -91,18 +102,32 @@ export default function ProjectsPage() {
     setSelectedCompliances([])
   }
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (!newProjectName.trim()) return
     
-    const newProject = {
-      id: projects.length + 1,
-      name: newProjectName,
-      status: 'Planning',
-      lastUpdated: 'Just now',
-      client: clientName || 'N/A'
+    // Get current user from localStorage
+    const userId = localStorage.getItem('nextgen_user') || '1'
+    const USERS = [
+      { id: '1', name: 'Aditya Sharma' },
+      { id: '2', name: 'Vikram Mehta' },
+      { id: '3', name: 'Sara Khan' },
+    ]
+    const user = USERS.find(u => u.id === userId) || USERS[0]
+
+    try {
+      await api.post('/api/projects', {
+        name: newProjectName,
+        client: clientName,
+        compliances: selectedCompliances,
+        createdBy: user.name
+      })
+      
+      // Refresh list
+      await fetchProjects()
+      resetModal()
+    } catch (error) {
+      console.error('Failed to create project:', error)
     }
-    setProjects([newProject, ...projects])
-    resetModal()
   }
 
   return (
@@ -132,45 +157,58 @@ export default function ProjectsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map((project) => (
-          <div 
-            key={project.id} 
-            className="group relative bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl p-6 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/5 overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer">
-                <Info size={16} />
+        {isLoading ? (
+          [1, 2, 3].map((i) => (
+            <div key={i} className="h-64 bg-slate-900/50 border border-slate-800 rounded-2xl animate-pulse" />
+          ))
+        ) : projects.length > 0 ? (
+          projects.map((project) => (
+            <div 
+              key={project.id} 
+              className="group relative bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-2xl p-6 hover:border-blue-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/5 overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer">
+                  <Info size={16} />
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-start justify-between mb-6">
-              <div className="p-3 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
-                <Folder className="text-blue-500" size={24} />
+              <div className="flex items-start justify-between mb-6">
+                <div className="p-3 bg-blue-500/10 rounded-xl group-hover:bg-blue-500/20 transition-colors">
+                  <Folder className="text-blue-500" size={24} />
+                </div>
+                <span className={`text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full border ${
+                  project.status === 'ACTIVE' ? 'bg-green-500/5 text-green-400 border-green-500/20' :
+                  project.status === 'COMPLETED' ? 'bg-slate-800/50 text-slate-400 border-slate-700' :
+                  'bg-yellow-500/5 text-yellow-400 border-yellow-500/20'
+                }`}>
+                  {project.status}
+                </span>
               </div>
-              <span className={`text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full border ${
-                project.status === 'Active' ? 'bg-green-500/5 text-green-400 border-green-500/20' :
-                project.status === 'Completed' ? 'bg-slate-800/50 text-slate-400 border-slate-700' :
-                'bg-yellow-500/5 text-yellow-400 border-yellow-500/20'
-              }`}>
-                {project.status}
-              </span>
+              
+              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">{project.name}</h3>
+              <div className="flex items-center gap-2 text-slate-400 text-sm mb-6">
+                <Building2 size={14} />
+                {project.client || 'General Client'}
+              </div>
+              
+              <div className="pt-5 border-t border-slate-800/50 flex justify-between items-center">
+                <span className="text-xs text-slate-500">
+                  Updated {new Date(project.lastUpdated).toLocaleDateString()}
+                </span>
+                <Link href={`/projects/${project.id}`} className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition-colors font-bold group/link">
+                  View Project
+                  <ArrowRight size={14} className="group-hover/link:translate-x-1 transition-transform" />
+                </Link>
+              </div>
             </div>
-            
-            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">{project.name}</h3>
-            <div className="flex items-center gap-2 text-slate-400 text-sm mb-6">
-              <Building2 size={14} />
-              {project.client}
-            </div>
-            
-            <div className="pt-5 border-t border-slate-800/50 flex justify-between items-center">
-              <span className="text-xs text-slate-500">Updated {project.lastUpdated}</span>
-              <Link href={`/projects/${project.id}`} className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition-colors font-bold group/link">
-                View Project
-                <ArrowRight size={14} className="group-hover/link:translate-x-1 transition-transform" />
-              </Link>
-            </div>
+          ))
+        ) : (
+          <div className="col-span-full py-20 text-center border border-dashed border-slate-800 rounded-3xl">
+            <Folder size={48} className="mx-auto text-slate-800 mb-4" />
+            <p className="text-slate-500 font-medium">No projects found. Create your first project to get started!</p>
           </div>
-        ))}
+        )}
       </div>
 
       <Modal 

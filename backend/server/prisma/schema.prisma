@@ -56,3 +56,14 @@ model SystemLog {
   details     String?  // Optional JSON string for extra info
   createdAt   DateTime @default(now())
 }
+
+model Project {
+  id           String   @id @default(uuid())
+  name         String
+  client       String?
+  status       String   @default("PLANNING") // PLANNING | ACTIVE | COMPLETED
+  compliances  String?  // JSON string of selected compliances (array of objects)
+  createdBy    String   // User name or ID
+  lastUpdated  DateTime @updatedAt
+  createdAt    DateTime @default(now())
+}
