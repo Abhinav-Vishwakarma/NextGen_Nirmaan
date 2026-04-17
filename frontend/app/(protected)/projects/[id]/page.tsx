@@ -519,10 +519,9 @@ export default function ProjectDetailsPage() {
                     {isUploading ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <>
-                        <CheckCircle2 size={18} />
-                        Start Ingestion
-                      </>
+                      <span   className='flex'>
+                        <CheckCircle2 size={18} /> Add to Project
+                      </span>
                     )}
                   </Button>
                   <p className="text-[10px] text-center text-slate-500">
