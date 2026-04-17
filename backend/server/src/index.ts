@@ -147,6 +147,20 @@ app.get('/api/documents', async (req, res) => {
   }
 })
 
+app.get('/api/documents/:id', async (req, res) => {
+  try {
+    const document = await prisma.document.findUnique({
+      where: { id: req.params.id }
+    })
+    if (!document) {
+      return res.status(404).json({ error: 'Document not found' })
+    }
+    res.json(document)
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch document' })
+  }
+})
+
 // Handle document upload
 app.post('/api/documents/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {

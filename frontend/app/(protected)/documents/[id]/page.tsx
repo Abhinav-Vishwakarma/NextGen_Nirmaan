@@ -55,8 +55,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   const fetchDoc = async () => {
     try {
-      const res = await api.get('/api/documents')
-      const target = res.documents.find((d: any) => d.id === id)
+      const target = await api.get(`/api/documents/${id}`)
       setDoc(target || null)
       if (!target) {
         showToast({ type: 'error', title: 'Document not found', message: 'This document could not be loaded.' })
