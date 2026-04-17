@@ -1,73 +1,45 @@
-# AGENTS.md — AI Service (FastAPI + LangChain)
+# AGENTS.md — AI Server (Express.js + Node.js + TypeScript)
 
-> ⚠️ **NOT USED IN HACKATHON BUILD**
->
-> This file documents the **production-grade** FastAPI AI server architecture
-> planned for future development. For the hackathon, all AI logic runs
-> inside **Next.js API Routes** using the Gemini API directly
-> (see `frontend/AGENTS.md`).
->
-> This file is preserved for post-hackathon reference when the project
-> needs a dedicated Python AI service.
+> This server handles all AI logic, OCR, and interactions with the vector database.
 
 ---
 
-## When to Activate This Server
-
-Migrate AI logic from Next.js API Routes to this FastAPI server when:
-
-1. **PaddleOCR** — Need local GPU-accelerated OCR instead of Gemini Vision
-2. **LangGraph agents** — Complex multi-step agentic workflows
-3. **Heavy Python libs** — Pandas, scipy for analytics/anomaly detection
-4. **Model hosting** — Self-hosted LLMs or fine-tuned models
-5. **Concurrent processing** — RabbitMQ workers for batch extraction
-
----
-
-## Hackathon vs Production Comparison
-
-| Concern | Hackathon (Current) | Production (Future) |
-|---|---|---|
-| OCR | Gemini Vision API (cloud) | PaddleOCR (GPU, local) |
-| Embeddings | Gemini text-embedding-004 | OpenAI text-embedding-3-small |
-| LLM reasoning | Gemini 2.5 Flash | Claude 3.5 / GPT-4o via LangGraph |
-| Vector DB | Qdrant (same) | Qdrant (same) |
-| Framework | Next.js API Route | FastAPI + LangChain |
-| Auth | None | Keycloak JWT verification |
-| Queue | None (synchronous) | RabbitMQ + Dead Letter Exchange |
-
----
-
-## Production Architecture (For Later)
+## Architecture Overview
 
 ```
-NestJS Server
-    │ HTTP (internal network)
-    ▼
-FastAPI AI Service (:8000)     ← This server
-    ├── /v1/embeddings         — Embed text + store in Qdrant
-    ├── /v1/chat               — Conversational compliance chat
-    ├── /v1/documents/extract   — PaddleOCR extraction
-    └── /v1/ai/verify          — RAG compliance verification
-         │
-    ┌────┴─────┐
-    │  Qdrant  │  (Vector search for law retrieval)
-    └──────────┘
+    Main Server (Express.js :4000)
+           │
+           ▼
+┌──────────────────────────────────────────────┐
+│         AI Server (Express.js :5000)         │
+│                                              │
+│  src/                                        │
+│    ├── routes/      ← /ai/extract, /ai/verify│
+│    ├── controllers/ ← Request handlers       │
+│    ├── services/    ← Gemini interactions    │
+│    └── qdrant/      ← Vector DB interactions │
+└──────────┬─────────────────────────┬─────────┘
+           │                         │
+           ▼                         ▼
+      Gemini API                  Qdrant
+      (Cloud API)                (:6333)
 ```
 
-## Key Production Modules
+## Rules
 
-| Module | Responsibility |
-|---|---|
-| M3: Extraction | PaddleOCR + LLM correction → structured JSON |
-| M5: AI Agent | LangGraph Plan-Execute-Verify loop |
-| M7: Intel-Engine | Playwright scraper + law embedding pipeline |
+*   **Stack:** Express.js, Node.js, TypeScript.
+*   **Responsibilities:**
+    *   Initialize and manage the Gemini SDK (`@google/generative-ai`).
+    *   Interact with Qdrant vector database via native `fetch`.
+    *   Perform OCR via Gemini Vision (`POST /api/ai/extract`).
+    *   Execute the Plan-Execute-Verify RAG loop for compliance checks (`POST /api/ai/verify`).
+*   **No SQLite Database:** This server does not connect directly to Prisma or SQLite. It receives necessary structured data from the Main Server, performs the AI computation, and returns the result back to the Main Server.
+*   **No File Storage:** Depending on implementation, it either receives base64 encoded files from the Main Server or has a shared volume/access to the local `uploads` directory. For simplicity in hackathon, accept base64 or file paths if running locally.
 
----
+## Environment Variables
 
-## Current Status
-
-- [ ] No code implemented — only this specification file exists
-- [ ] Directory: `backend/ai_server/`
-- [ ] Will be bootstrapped with `pip install fastapi uvicorn` when needed
-- [ ] AI logic currently lives in `frontend/lib/gemini.ts` and `frontend/app/api/documents/[id]/verify/route.ts`
+```env
+PORT=5000
+GEMINI_API_KEY=your_gemini_api_key_here
+QDRANT_URL=http://localhost:6333
+```

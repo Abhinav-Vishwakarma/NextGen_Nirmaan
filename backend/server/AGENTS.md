@@ -1,57 +1,47 @@
-# AGENTS.md — NestJS Main Server
+# AGENTS.md — Main Server (Express.js + Node.js + TypeScript)
 
-> ⚠️ **NOT USED IN HACKATHON BUILD**
->
-> This file documents the **production-grade** NestJS server architecture
-> planned for future development. For the hackathon, all backend logic
-> runs inside **Next.js API Routes** (see `frontend/AGENTS.md`).
->
-> This file is preserved for post-hackathon reference when the project
-> scales to a dedicated backend.
+> This is the core transactional backend for the hackathon.
 
 ---
 
-## When to Activate This Server
-
-Migrate from Next.js API Routes to this NestJS server when:
-
-1. **Auth is needed** — Logto/Keycloak RBAC with 5 roles
-2. **Scale** — Processing 1000+ invoices/month requires dedicated workers
-3. **Queue system** — RabbitMQ for async OCR/extraction jobs
-4. **Multi-DB** — PostgreSQL for relational data, MongoDB for documents
-5. **Microservices** — Separate OCR, Filing, and Notification services
-
----
-
-## Production Architecture (For Later)
+## Architecture Overview
 
 ```
-Frontend (Next.js)
-    │
-    ▼
-NestJS Server (:3001)          ← This server
-    ├── Auth (Logto JWT Guard)
-    ├── CRUD APIs
-    ├── AI Client (→ FastAPI)
-    ├── PostgreSQL (TypeORM)
-    ├── MongoDB (Mongoose)
-    └── Redis (Cache + Pub/Sub)
+    Frontend (Next.js :3000)
+           │
+           ▼
+┌──────────────────────────────────────────────┐
+│       Main Server (Express.js :4000)         │
+│                                              │
+│  src/                                        │
+│    ├── routes/      ← Express API routes     │
+│    ├── controllers/ ← Request handlers       │
+│    ├── services/    ← Business logic         │
+│    └── prisma/      ← SQLite database access │
+└──────────┬─────────────────────────┬─────────┘
+           │                         │
+           ▼                         ▼
+      SQLite DB                  AI Server
+      (dev.db)               (Express.js :5000)
 ```
 
-## Key Production Modules
+## Rules
 
-| Module | Responsibility |
-|---|---|
-| M1: Identity | RBAC, SSO, Org management (Logto) |
-| M2: Vault | S3 file storage, metadata in Mongo |
-| M4: Analytics | Aggregation pipelines, Redis cache |
-| M6: Reconciler | Books vs Government portal diff |
-| M7: Notifier | Socket.io real-time push |
+*   **Stack:** Express.js, TypeScript, Node.js.
+*   **Database:** Prisma ORM connected to SQLite (`dev.db`). Models include `Document`, `Alert`, `LawUpdate`.
+*   **Responsibilities:**
+    *   Serve as the main entry point for the frontend.
+    *   Handle file uploads via `multer` (store in local `uploads/` dir).
+    *   Perform CRUD operations on documents, alerts, and law updates.
+    *   Serve statistics for the dashboard.
+*   **AI Integration:** The Main Server does *not* run Gemini SDK directly. It makes HTTP calls to the AI Server for OCR and RAG compliance checks.
+    *   `POST /api/documents/upload` -> Save file, proxy call to AI Server `POST /api/ai/extract`.
+    *   `POST /api/documents/:id/verify` -> Proxy call to AI Server `POST /api/ai/verify`.
 
----
+## Environment Variables
 
-## Current Status
-
-- [ ] No code implemented — only this specification file exists
-- [ ] Directory: `backend/server/`
-- [ ] Will be bootstrapped with `npx @nestjs/cli new` when needed
+```env
+PORT=4000
+DATABASE_URL="file:./prisma/dev.db"
+AI_SERVER_URL=http://localhost:5000
+```

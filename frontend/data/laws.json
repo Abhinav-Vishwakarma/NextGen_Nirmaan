@@ -1,0 +1,34 @@
+[
+    {
+      "id": "GST_SEC_31",
+      "title": "Tax Invoice Requirements",
+      "section": "Section 31 of CGST Act",
+      "category": "GST",
+      "tags": ["invoice", "gstin", "mandatory"],
+      "text": "A registered person supplying taxable goods shall, before or at the time of removal of goods for supply to the recipient, issue a tax invoice showing the description, quantity and value of goods, the tax charged thereon and such other particulars as may be prescribed. The invoice must clearly indicate the GSTIN of both the supplier and the recipient (if registered)."
+    },
+    {
+      "id": "GST_MATH_01",
+      "title": "Computation of Taxable Value and Tax Amount",
+      "section": "Rule 46(f) of CGST Rules",
+      "category": "GST",
+      "tags": ["computation", "math", "total"],
+      "text": "The taxable value of the supply of goods or services, taking into account discount or abatement, shall be computed correctly. The total tax (CGST + SGST or IGST) must mathematically match the specified rate applied directly to the listed taxable value. Any discrepancy exceeding ₹1 constitutes an invalid tax invoice."
+    },
+    {
+      "id": "GST_HSN_REQ",
+      "title": "HSN Code Declaration",
+      "section": "Notification No. 78/2020-Central Tax",
+      "category": "GST",
+      "tags": ["hsn", "classification"],
+      "text": "It is mandatory to mention the HSN (Harmonized System of Nomenclature) code for all B2B (Business to Business) tax invoices regardless of turnover. The HSN code mentioned must accurately represent the description of the goods or services."
+    },
+    {
+      "id": "GST_INTERSTATE_IGST",
+      "title": "Inter-state vs Intra-state Tax Applicability",
+      "section": "Section 7 and 8 of IGST Act",
+      "category": "GST",
+      "tags": ["igst", "cgst", "sgst", "place_of_supply"],
+      "text": "If the location of the supplier and the place of supply are in the same State or Union Territory, it is an intra-state supply requiring CGST and SGST. If the location of the supplier and the place of supply are in different States, it is an inter-state supply requiring IGST exclusively."
+    }
+]
