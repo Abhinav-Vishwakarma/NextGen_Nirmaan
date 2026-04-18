@@ -1,4 +1,4 @@
-# NextGen Nirmaan: AI Compliance Platform
+# NextGen Nirmaan: ComplyEasy
 
 A microservices-based AI platform for Indian GST compliance, OCR extraction, and RAG-driven legal verification.
 
