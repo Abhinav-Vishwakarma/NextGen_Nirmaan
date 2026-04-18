@@ -422,7 +422,9 @@ export default function ProjectDetailsPage() {
                           {isProcessing ? <Cpu size={24} className="animate-spin" /> : <FileText size={24} className="text-indigo-400 group-hover:text-white" />}
                         </div>
                         <div className="space-y-1 text-left">
-                          <p className="text-sm font-black text-white leading-tight line-clamp-1">{doc.fileName}</p>
+                          <Link href={`/documents/${doc.id}`} className="block">
+                            <p className="text-sm font-black text-white leading-tight line-clamp-1 hover:text-indigo-400 transition-colors cursor-pointer">{doc.fileName}</p>
+                          </Link>
                           <div className="flex items-center gap-4">
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5"><Clock size={12}/> {new Date(doc.createdAt).toLocaleDateString()}</span>
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">ID: {doc.id.split('-')[0]}</span>
@@ -447,21 +449,21 @@ export default function ProjectDetailsPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {doc.complianceScore !== null && (
-                                <Link 
-                                    href={`/documents/${doc.id}`}
-                                    className="p-3 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all"
-                                >
-                                    <ChevronRight size={18} />
-                                </Link>
-                            )}
+                            <Link 
+                                href={`/documents/${doc.id}`}
+                                className="flex items-center gap-2 px-4 py-2 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all text-[10px] font-black uppercase tracking-widest"
+                            >
+                                Open Viewer
+                                <ChevronRight size={14} />
+                            </Link>
                             <a 
                                 href={`${API_BASE}/api/files/${doc.filePath}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-3 bg-slate-900 text-slate-600 hover:text-white rounded-xl transition-all"
+                                className="p-2.5 bg-slate-900 text-slate-600 hover:text-white rounded-xl transition-all"
+                                title="Download Raw File"
                             >
-                                <ExternalLink size={18} />
+                                <ExternalLink size={16} />
                             </a>
                         </div>
                       </div>

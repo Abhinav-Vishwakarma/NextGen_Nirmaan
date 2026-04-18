@@ -1,43 +1,57 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
-import { api } from '@/lib/api'
-import { ArrowLeft, CheckCircle, AlertTriangle, Info, ShieldCheck, User } from 'lucide-react'
+import { useEffect, useState, use, useMemo } from 'react'
+import { api, API_BASE } from '@/lib/api'
+import { 
+  ArrowLeft, 
+  CheckCircle, 
+  AlertTriangle, 
+  Info, 
+  ShieldCheck, 
+  User,
+  LayoutDashboard,
+  FileSpreadsheet,
+  Activity,
+  ChevronRight,
+  ShieldAlert,
+  Sparkles
+} from 'lucide-react'
 import { useToast } from '@/hooks/useToast'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
+import { ExcelViewer } from '@/components/ui/ExcelViewer/ExcelViewer'
+import { Button } from '@/components/ui/Button'
 
-// SVG Gauge Component
 function ScoreGauge({ score }: { score: number }) {
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
 
-  let color = '#3b82f6' // Blue default (not evaluated)
+  let color = '#6366f1' // Indigo default
   if (score >= 85) color = '#10b981' // Green
   else if (score >= 60) color = '#f59e0b' // Amber
   else color = '#ef4444' // Red
 
   return (
-    <div className="relative w-32 h-32 flex items-center justify-center mx-auto">
+    <div className="relative w-40 h-40 flex items-center justify-center mx-auto">
       <svg className="transform -rotate-90 w-full h-full">
-        {/* Background circle */}
         <circle
-          cx="64" cy="64" r="45"
-          stroke="rgba(255,255,255,0.1)" strokeWidth="8" fill="transparent"
+          cx="80" cy="80" r="45"
+          stroke="rgba(255,255,255,0.05)" strokeWidth="10" fill="transparent"
         />
-        {/* Progress circle */}
         <circle
-          cx="64" cy="64" r="45"
-          stroke={color} strokeWidth="8" fill="transparent"
+          cx="80" cy="80" r="45"
+          stroke={color} strokeWidth="10" fill="transparent"
           strokeDasharray={circumference}
           strokeDashoffset={score === 0 ? circumference : offset}
           strokeLinecap="round"
           className="transition-all duration-1000 ease-out"
+          style={{ filter: `drop-shadow(0 0 8px ${color}40)` }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold text-white shadow-sm" style={{ color }}>{score}</span>
-        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Score</span>
+        <span className="text-4xl font-black text-white" style={{ color }}>{score}</span>
+        <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Compliance</span>
       </div>
     </div>
   )
@@ -49,6 +63,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
   const [autoRunTriggered, setAutoRunTriggered] = useState(false)
+  const [activeTab, setActiveTab] = useState<'analysis' | 'data'>('analysis')
   const { showToast } = useToast()
   
   const searchParams = useSearchParams()
@@ -64,7 +79,6 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
     if (doc && autoRun && !autoRunTriggered && !verifying && (doc.status === 'EXTRACTED' || doc.status === 'UPLOADED')) {
       setAutoRunTriggered(true)
       handleVerify()
-      // Clean up the URL to prevent re-running on manual refresh
       router.replace(pathname, { scroll: false })
     }
   }, [doc, autoRun, autoRunTriggered, verifying])
@@ -73,11 +87,8 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
     try {
       const target = await api.get(`/api/documents/${id}`)
       setDoc(target || null)
-      if (!target) {
-        showToast({ type: 'error', title: 'Document not found', message: 'This document could not be loaded.' })
-      }
     } catch {
-      showToast({ type: 'error', title: 'Failed to load document', message: 'Could not reach the server.' })
+      showToast({ type: 'error', title: 'Connection Failure' })
     } finally {
       setLoading(false)
     }
@@ -85,175 +96,223 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   const handleVerify = async () => {
     setVerifying(true)
-    showToast({ type: 'info', title: 'Running AI compliance check…', message: 'This may take a few seconds.' })
+    showToast({ type: 'info', title: 'AI Audit Cycle Started', message: 'Analyzing patterns...' })
     try {
        const res = await api.post(`/api/documents/${id}/verify`, {})
        setDoc(res)
-
-       const report = res.complianceReport ? JSON.parse(res.complianceReport) : null
-       const score = report?.complianceScore ?? res.complianceScore
-
-       if (res.status === 'VERIFIED') {
-         showToast({
-           type: 'success',
-           title: `✅ Compliance Passed — Score ${score}`,
-           message: report?.summary || 'Document meets all GST requirements.',
-           duration: 6000,
-         })
-       } else {
-         showToast({
-           type: 'warning',
-           title: `⚠️ Flagged — Score ${score}`,
-           message: report?.summary || 'Compliance issues detected. Review the report.',
-           duration: 7000,
-         })
-       }
-    } catch (e: any) {
        showToast({
-         type: 'error',
-         title: 'Verification failed',
-         message: e?.message || 'The AI engine encountered an error.',
-         duration: 6000,
+          type: res.status === 'VERIFIED' ? 'success' : 'warning',
+          title: 'Audit Complete',
+          message: `Document flagged with ${res.complianceScore}% confidence.`
        })
+    } catch (e: any) {
+       showToast({ type: 'error', title: 'Verification Reject' })
     } finally {
        setVerifying(false)
     }
   }
 
-  if (loading) return <div className="p-8 text-center text-slate-400">Loading document...</div>
+  const isSpreadsheet = useMemo(() => {
+    if (!doc) return false
+    const spreadsheetTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'text/csv'
+    ]
+    const ext = doc.fileName?.split('.').pop()?.toLowerCase()
+    return spreadsheetTypes.includes(doc.fileType) || ['csv', 'xlsx', 'xls'].includes(ext)
+  }, [doc])
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="w-12 h-12 border-4 border-indigo-500/10 border-t-indigo-500 rounded-full animate-spin" />
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Retrieving Artifact...</p>
+    </div>
+  )
   
-  if (!doc) return <div className="p-8 text-center text-red-400">Document not found on this proxy layer.</div>
+  if (!doc) return <div className="p-20 text-center font-black uppercase tracking-widest text-rose-500">Record Not Found</div>
 
   const report = doc.complianceReport ? JSON.parse(doc.complianceReport) : null
 
   return (
-    <div className="max-w-5xl mx-auto stagger-children pb-16">
-      <div className="mb-6">
-        <a href="/documents" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm w-fit transition-colors">
-          <ArrowLeft size={16} /> Back to Documents
-        </a>
-      </div>
-
-      <div className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-white mb-2">{doc.fileName}</h1>
-          <div className="flex items-center gap-4 text-slate-400 text-sm">
-            <p>
-              Status: <span className="px-2 py-1 ml-2 bg-white/10 rounded-md text-white">{doc.status}</span>
-            </p>
-            {doc.uploadedBy && (
-              <>
-                <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-                <p className="flex items-center gap-1.5 text-blue-400">
-                  <User size={14} />
-                  <span>{doc.uploadedBy}</span>
-                </p>
-              </>
-            )}
-          </div>
+    <div className="max-w-6xl mx-auto space-y-10 animate-fadeInUp pb-24">
+      <div className="mesh-bg" />
+      
+      {/* Navigation & Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 pt-8">
+        <div className="space-y-4">
+            <Link 
+                href={doc.projectId ? `/projects/${doc.projectId}` : "/projects"} 
+                className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-indigo-400 transition-colors group"
+            >
+                <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+                Back to Workspace
+            </Link>
+            <div className="flex flex-col gap-2">
+                <h1 className="text-4xl font-black text-white tracking-tighter">{doc.fileName}</h1>
+                <div className="flex items-center gap-4">
+                    <div className="px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <Activity size={12} className="text-indigo-500" />
+                        Status: <span className="text-indigo-400">{doc.status}</span>
+                    </div>
+                    {doc.uploadedBy && (
+                        <div className="text-[10px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
+                            <User size={12} />
+                            Owner: <span className="text-slate-400">{doc.uploadedBy}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
-        
+
         {(doc.status === 'EXTRACTED' || doc.status === 'UPLOADED') && (
-          <button 
-             onClick={handleVerify} 
-             disabled={verifying}
-             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2"
-          >
-            {verifying ? (
-               <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"/> Running AI Engine...</>
-            ) : (
-               <><ShieldCheck size={18} /> Run AI Compliance Check</>
-            )}
-          </button>
+            <Button 
+                onClick={handleVerify} 
+                isLoading={verifying}
+                size="lg"
+                className="px-8"
+                leftIcon={!verifying && <Sparkles size={18} />}
+            >
+                {verifying ? 'Auditing...' : 'Run AI Compliance'}
+            </Button>
         )}
       </div>
 
-      {!report && !verifying && doc.status !== 'EXTRACTING' && doc.status !== 'VERIFYING' && (
-         <div className="glass-card p-12 text-center text-slate-400">
-             <Info size={48} className="mx-auto mb-4 opacity-50 text-blue-400" />
-             <p>This document has not been verified by the AI Agent yet.</p>
-             <p className="text-sm mt-2 opacity-70">Click the button above to run the Plan-Execute-Verify loop.</p>
-         </div>
-      )}
+      {/* Modern Tabs */}
+      <div className="flex items-center gap-2 p-1.5 bg-slate-900/50 border border-slate-800 rounded-2xl w-fit">
+        <button
+            onClick={() => setActiveTab('analysis')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeTab === 'analysis' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-300'
+            }`}
+        >
+            <ShieldCheck size={14} />
+            AI Analysis
+        </button>
+        {isSpreadsheet && (
+            <button
+                onClick={() => setActiveTab('data')}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    activeTab === 'data' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-300'
+                }`}
+            >
+                <FileSpreadsheet size={14} />
+                Data Viewer
+            </button>
+        )}
+      </div>
 
-      {report && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
-          {/* Left Column: Score */}
-          <div className="lg:col-span-1">
-            <div className="glass-card p-6 text-center pt-8">
-              <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-6">AI Compliance Score</h2>
-              <ScoreGauge score={report.complianceScore || 0} />
-              
-              <div className="mt-8">
-                {report.status === 'APPROVED' ? (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <CheckCircle size={16} />
-                    <span className="font-semibold">Compliance Passed</span>
-                  </div>
-                ) : report.status === 'FLAGGED' ? (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
-                    <AlertTriangle size={16} />
-                    <span className="font-semibold">Action Required</span>
-                  </div>
-                ) : (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                    <Info size={16} />
-                    <span className="font-semibold">Needs Review</span>
-                  </div>
-                )}
-              </div>
-              <p className="text-sm text-slate-400 mt-6 leading-relaxed">
-                {report.summary}
-              </p>
-            </div>
-          </div>
+      {/* Tab Content */}
+      <div className="min-h-[500px]">
+        {activeTab === 'analysis' ? (
+            <div className="space-y-8 animate-fadeInUp">
+                {!report && !verifying && doc.status !== 'EXTRACTING' && doc.status !== 'VERIFYING' ? (
+                     <div className="glass-panel p-20 text-center flex flex-col items-center gap-6">
+                        <div className="p-6 bg-indigo-500/10 rounded-3xl text-indigo-500">
+                             <Info size={48} className="opacity-50" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-2xl font-black text-white tracking-tight">Pending Verification</h3>
+                            <p className="text-slate-500 font-medium max-w-sm mx-auto">This artifact has not been processed. Initiate the AI Audit cycle to generate a compliance report.</p>
+                        </div>
+                        <Button onClick={handleVerify} variant="secondary" leftIcon={<Sparkles size={16}/>}>Start Analysis</Button>
+                     </div>
+                  ) : report ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                      {/* Left Column: Summary */}
+                      <div className="lg:col-span-4 space-y-8">
+                        <div className="glass-panel p-10 text-center space-y-8">
+                          <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Audit Scoring</h2>
+                          <ScoreGauge score={report.complianceScore || 0} />
+                          
+                          <div className="space-y-4">
+                            {report.status === 'APPROVED' ? (
+                              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                <ShieldCheck size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Valid Record</span>
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                <ShieldAlert size={16} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Check Required</span>
+                              </div>
+                            )}
+                            <p className="text-sm font-medium text-slate-400 leading-relaxed px-4">
+                              {report.summary}
+                            </p>
+                          </div>
+                        </div>
 
-          {/* Right Column: Check Details */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="glass-card p-6">
-              <h2 className="text-lg font-semibold text-white mb-6">Reasoning & Verification</h2>
-              <div className="space-y-4">
-                {(report.checks || []).map((check: any, i: number) => (
-                  <div key={i} className="p-4 rounded-lg bg-white/5 border border-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                       <h3 className="font-medium text-white flex items-center gap-2">
-                         {check.result === 'PASS' && <CheckCircle size={16} className="text-emerald-400" />}
-                         {check.result === 'FAIL' && <AlertTriangle size={16} className="text-red-400" />}
-                         {check.result === 'WARN' && <AlertTriangle size={16} className="text-amber-400" />}
-                         {check.step.replace(/_/g, ' ')}
-                       </h3>
-                       <span className={`text-xs font-bold px-2 py-1 rounded bg-white/10 ${check.result === 'PASS' ? 'text-emerald-400' : check.result === 'FAIL' ? 'text-red-400' : 'text-amber-400'}`}>
-                         {check.result}
-                       </span>
+                        {/* Recommendations */}
+                        {report.recommendations && report.recommendations.length > 0 && (
+                            <div className="glass-panel p-8 space-y-4 border-indigo-500/20 bg-indigo-500/[0.02]">
+                                <h2 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                    <Sparkles size={14} /> Recommended Logic
+                                </h2>
+                                <ul className="space-y-4">
+                                  {report.recommendations.map((rec: string, i: number) => (
+                                     <li key={i} className="flex gap-4 text-xs text-slate-300 font-bold leading-relaxed">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
+                                        {rec}
+                                     </li>
+                                  ))}
+                                </ul>
+                            </div>
+                        )}
+                      </div>
+
+                      {/* Right Column: Reasoning */}
+                      <div className="lg:col-span-8 space-y-6">
+                        <div className="glass-panel p-10 space-y-8">
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-black text-white tracking-tight">Verification Log</h2>
+                            <div className="flex gap-2">
+                                <span className="bg-slate-950 px-3 py-1 rounded-lg text-[9px] font-black text-slate-500 uppercase tracking-widest">v1.2 AI Agent</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            {(report.checks || []).map((check: any, i: number) => (
+                              <div key={i} className="p-6 rounded-[2rem] bg-slate-950 border border-slate-900 flex flex-col gap-4 group hover:border-indigo-500/30 transition-all">
+                                <div className="flex items-center justify-between">
+                                   <div className="flex items-center gap-3">
+                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${
+                                        check.result === 'PASS' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+                                     }`}>
+                                        {check.result === 'PASS' ? <ShieldCheck size={20} /> : <AlertTriangle size={20} />}
+                                     </div>
+                                     <h3 className="text-sm font-black text-white uppercase tracking-tight">{check.step.replace(/_/g, ' ')}</h3>
+                                   </div>
+                                   <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                                        check.result === 'PASS' ? 'text-emerald-400 bg-emerald-500/5' : 'text-amber-400 bg-amber-500/5'
+                                   }`}>
+                                     {check.result}
+                                   </div>
+                                </div>
+                                <p className="text-xs text-slate-400 font-medium leading-relaxed pl-1">{check.detail}</p>
+                                {check.lawRef && (
+                                   <div className="flex items-center gap-2 mt-2 pt-4 border-t border-slate-900">
+                                     <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Source:</span>
+                                     <span className="text-[10px] font-bold text-slate-500">{check.lawRef}</span>
+                                   </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-sm text-slate-400 mt-2">{check.detail}</p>
-                    {check.lawRef && (
-                       <p className="text-xs text-blue-400 mt-3 pt-3 border-t border-white/5 inline-block">
-                         Ref: {check.lawRef}
-                       </p>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  ) : null}
             </div>
-            
-            {/* Recommendations */}
-            {report.recommendations && report.recommendations.length > 0 && (
-                <div className="glass-card p-6 bg-gradient-to-br from-[#12121a] to-blue-900/10 border-blue-500/20">
-                    <h2 className="text-lg font-semibold text-white mb-4">Recommended Actions</h2>
-                    <ul className="space-y-2">
-                      {report.recommendations.map((rec: string, i: number) => (
-                         <li key={i} className="flex gap-3 text-sm text-slate-300">
-                            <span className="text-blue-400 mt-0.5">•</span>
-                            {rec}
-                         </li>
-                      ))}
-                    </ul>
-                </div>
-            )}
-          </div>
-        </div>
-      )}
+        ) : (
+            <div className="animate-fadeInUp">
+                <ExcelViewer 
+                    fileUrl={`${API_BASE}/api/files/${doc.filePath}`} 
+                    fileName={doc.fileName} 
+                />
+            </div>
+        )}
+      </div>
     </div>
   )
 }
