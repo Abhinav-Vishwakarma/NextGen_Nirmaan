@@ -259,6 +259,28 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                                 </ul>
                             </div>
                         )}
+
+                        {/* Audit Traceability */}
+                        {doc.complianceCheckMeta && (
+                          <div className="glass-panel p-8 space-y-6">
+                            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                              <Activity size={14} /> Audit Traceability
+                            </h2>
+                            <div className="space-y-3">
+                              {JSON.parse(doc.complianceCheckMeta).map((law: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-slate-900 group hover:border-indigo-500/30 transition-all">
+                                  <div className="flex flex-col gap-1">
+                                    <span className="text-[11px] font-black text-white">{law.title}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">{law.section}</span>
+                                  </div>
+                                  <div className="text-[9px] font-black text-indigo-400 px-2.5 py-1.5 bg-indigo-500/10 rounded-lg uppercase tracking-widest border border-indigo-500/10">
+                                    v{law.version}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Right Column: Reasoning */}

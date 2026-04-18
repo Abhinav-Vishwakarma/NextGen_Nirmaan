@@ -173,8 +173,10 @@ app.post('/api/ai/verify', async (req: Request, res: Response) => {
         // 1. Vectorize text context
         const invoiceVector = await embedText(invoiceSummary)
 
-        // 2. Search Qdrant memory 
-        const similarLaws = await searchSimilar(invoiceVector, 5)
+        // 2. Search Qdrant memory - Filter by LATEST laws
+        const similarLaws = await searchSimilar(invoiceVector, 5, {
+            must: [{ key: "is_latest", match: { value: true } }]
+        })
 
         // 3. Prepare injection context
         const lawContext = similarLaws
@@ -197,8 +199,10 @@ app.post('/api/ai/verify', async (req: Request, res: Response) => {
             status: complianceReport.status,
             complianceReport,
             lawsConsulted: similarLaws.map(h => ({
+                id: h.payload.law_id,
                 title: h.payload.title,
                 section: h.payload.section,
+                version: h.payload.version,
                 relevanceScore: Math.round(h.score * 100)
             }))
         })
@@ -280,6 +284,63 @@ app.post('/api/ai/evaluate-policy', async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Policy Evaluation error:', error)
         res.status(500).json({ error: 'Failed to evaluate policy' })
+    }
+})
+
+// === LAW PARSING & VERSIONING ===
+const LAW_PARSING_PROMPT = `
+You are an expert Legal Data Architect. Analyze the provided legal document and extract all distinct regulatory clauses, provisions, or articles.
+Return ONLY valid JSON (no markdown fences) in this format:
+[
+  {
+    "title": "string",
+    "section": "string",
+    "text": "string",
+    "summary": "string",
+    "tags": ["string"]
+  }
+]
+`;
+
+app.post('/api/ai/laws/parse', async (req: Request, res: Response) => {
+    try {
+        const { filePath, mimeType } = req.body
+        if (!filePath || !mimeType) {
+            return res.status(400).json({ error: 'filePath and mimeType are required' })
+        }
+
+        const fileBuffer = fs.readFileSync(filePath)
+        const base64Data = fileBuffer.toString('base64')
+
+        const result = await geminiPro.generateContent([
+            LAW_PARSING_PROMPT,
+            {
+                inlineData: {
+                    mimeType,
+                    data: base64Data,
+                },
+            },
+        ])
+
+        const responseText = result.response.text()
+        const jsonStr = responseText.replace(/```json\n?|```/g, '').trim()
+        const clauses = JSON.parse(jsonStr)
+
+        res.json({ clauses })
+    } catch (error) {
+        console.error('Law Parse error:', error)
+        res.status(500).json({ error: 'Failed to parse legal document' })
+    }
+})
+
+app.post('/api/ai/laws/embed', async (req: Request, res: Response) => {
+    try {
+        const { text } = req.body
+        if (!text) return res.status(400).json({ error: 'text required' })
+        const vector = await embedText(text)
+        res.json({ vector })
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to embed text' })
     }
 })
 

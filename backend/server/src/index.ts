@@ -7,6 +7,7 @@ import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import fs from 'fs'
 import scraperRoutes from './routes/scraper'
+import lawIngestionRoutes from './routes/law-ingestion'
 
 dotenv.config()
 
@@ -347,7 +348,17 @@ app.post('/api/documents/:id/verify', async (req, res) => {
        }
      })
 
-     if (updated.status === 'FLAGGED') {
+      // Store consulted versions for history
+      if (verifyData.lawsConsulted) {
+          await prisma.document.update({
+              where: { id },
+              data: {
+                  complianceCheckMeta: JSON.stringify(verifyData.lawsConsulted)
+              }
+          })
+      }
+
+      if (updated.status === 'FLAGGED') {
          await prisma.alert.create({
              data: {
                  type: 'FLAGGED_DOC',
@@ -465,6 +476,7 @@ app.get('/api/projects/:id', async (req, res) => {
     const project = await prisma.project.findUnique({
       where: { id }
     })
+    
     if (!project) return res.status(404).json({ error: 'Project not found' })
     
     // Also fetch documents linked to this project
@@ -475,6 +487,7 @@ app.get('/api/projects/:id', async (req, res) => {
 
     res.json({ ...project, documents })
   } catch (error) {
+    console.error('Fetch Project Error:', error)
     res.status(500).json({ error: 'Failed to fetch project' })
   }
 })
@@ -643,6 +656,9 @@ app.post('/api/policy-evaluations/evaluate', upload.single('file'), async (req: 
 
 // === SCRAPER API ===
 app.use('/api/scraper', scraperRoutes)
+
+// === LAW INGESTION API ===
+app.use('/api/ai/laws', lawIngestionRoutes)
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {

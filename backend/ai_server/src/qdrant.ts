@@ -48,7 +48,7 @@ export async function upsertPoints(points: QdrantPoint[]): Promise<void> {
   }
 }
 
-export async function searchSimilar(vector: number[], limit = 5): Promise<SearchResult[]> {
+export async function searchSimilar(vector: number[], limit = 5, filter?: any): Promise<SearchResult[]> {
   const res = await fetch(
     `${QDRANT_URL}/collections/${COLLECTION_NAME}/points/search`,
     {
@@ -57,6 +57,7 @@ export async function searchSimilar(vector: number[], limit = 5): Promise<Search
       body: JSON.stringify({
         vector,
         limit,
+        filter: filter || undefined,
         with_payload: true,
       }),
     }

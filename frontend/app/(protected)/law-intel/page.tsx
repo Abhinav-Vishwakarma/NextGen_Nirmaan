@@ -1,20 +1,66 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Upload as UploadIcon, File as FileIcon, CheckCircle, Scale } from 'lucide-react'
+import { Upload as UploadIcon, File as FileIcon, CheckCircle, Scale, ArrowLeft, ChevronRight, LayoutDashboard, History, Database, ShieldCheck } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/useToast'
 import { useRouter } from 'next/navigation'
 
 export default function LawIntelPage() {
+  const [activeMode, setActiveMode] = useState<'audit' | 'manager'>('audit')
   const [dragActive, setDragActive] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'extracted' | 'error'>('idle')
+  const [department, setDepartment] = useState('General')
+  const [category, setCategory] = useState('GST')
+  const [laws, setLaws] = useState<any[]>([])
+  const [selectedLawHistory, setSelectedLawHistory] = useState<any[] | null>(null)
+  const [loadingLaws, setLoadingLaws] = useState(false)
+  
   const [whatsNew, setWhatsNew] = useState<string | null>(null)
   const [fetchingNews, setFetchingNews] = useState(true)
   const { showToast } = useToast()
   const router = useRouter()
+
+  useEffect(() => {
+    fetchCurrentLaws()
+    // ... rest of effect
+  }, [])
+
+  const fetchCurrentLaws = async () => {
+      setLoadingLaws(true)
+      try {
+          const res = await api.get('/api/ai/laws')
+          // Assuming AI server returns { results: [{ payload: ... }] }
+          const formatted = (res.results || []).map((r: any) => r.payload).filter((p: any) => p.is_latest)
+          setLaws(formatted)
+      } catch (err) {
+          console.error(err)
+      } finally {
+          setLoadingLaws(false)
+      }
+  }
+
+  const fetchLawHistory = async (title: string, section: string) => {
+      try {
+          const res = await api.get(`/api/ai/laws/history?title=${encodeURIComponent(title)}&section=${encodeURIComponent(section)}`)
+          setSelectedLawHistory(res.history || [])
+      } catch (err) {
+          showToast({ type: 'error', title: 'Failed to fetch history' })
+      }
+  }
+
+  const handleRestore = async (id: string) => {
+      try {
+          await api.post(`/api/ai/laws/restore/${id}`, {})
+          showToast({ type: 'success', title: 'Version Restored', message: 'The regulatory logic has been updated.' })
+          setSelectedLawHistory(null)
+          fetchCurrentLaws()
+      } catch (err) {
+          showToast({ type: 'error', title: 'Restore Failed' })
+      }
+  }
 
   useEffect(() => {
     api.get('/api/scraper/whats-new')
@@ -55,20 +101,32 @@ export default function LawIntelPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('category', 'LAW') // Use LAW category for law intel
+      formData.append('category', activeMode === 'manager' ? category : 'LAW')
 
-      const uploadRes = await api.postFormData('/api/documents/upload', formData)
-      
-      setStatus('extracted')
-
-      showToast({
-        type: 'success',
-        title: 'Document processed!',
-        message: 'The legal document has been securely uploaded.',
-      })
-      
-      // Redirect to the document analysis page
-      router.push(`/documents/${uploadRes.id}`)
+      if (activeMode === 'manager') {
+          // Manual Ingestion flow
+          const uploadRes = await api.postFormData('/api/documents/upload', formData)
+          const ingestRes = await api.post(`/api/ai/laws/ingest/${uploadRes.id}`, { department, category })
+          
+          setStatus('idle')
+          setFile(null)
+          showToast({
+            type: 'success',
+            title: 'Knowledge Base Updated',
+            message: `Successfully ingested ${ingestRes.count} regulatory clauses into ${department}.`,
+          })
+          fetchCurrentLaws()
+      } else {
+          // Audit flow
+          const uploadRes = await api.postFormData('/api/documents/upload', formData)
+          setStatus('extracted')
+          showToast({
+            type: 'success',
+            title: 'Document processed!',
+            message: 'The legal document has been securely uploaded.',
+          })
+          router.push(`/documents/${uploadRes.id}`)
+      }
     } catch (err: any) {
       setStatus('error')
       const msg = err.message || 'Upload failed'
@@ -83,16 +141,83 @@ export default function LawIntelPage() {
 
   return (
     <div className="max-w-5xl mx-auto stagger-children animate-fade-in pb-16">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <Scale size={28} className="text-blue-500" />
-          <h1 className="text-3xl font-bold text-white">Law Intel</h1>
+      <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+           <div className="flex items-center gap-3 mb-2">
+             <Scale size={32} className="text-blue-500" />
+             <h1 className="text-4xl font-black text-white tracking-tighter">Law Intel</h1>
+           </div>
+           <p className="text-slate-400 font-medium">Neural engine for legal intelligence and regulatory compliance.</p>
         </div>
-        <p className="text-slate-400">Upload legal notices, contracts, and regulatory documents for AI analysis.</p>
+
+        <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/5">
+            <button 
+              onClick={() => setActiveMode('audit')}
+              className={cn(
+                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                activeMode === 'audit' ? "bg-blue-600 text-white shadow-xl shadow-blue-500/20" : "text-slate-500 hover:text-slate-300"
+              )}
+            >
+              <ShieldCheck size={14} /> Audit Engine
+            </button>
+            <button 
+              onClick={() => setActiveMode('manager')}
+              className={cn(
+                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                activeMode === 'manager' ? "bg-blue-600 text-white shadow-xl shadow-blue-500/20" : "text-slate-500 hover:text-slate-300"
+              )}
+            >
+              <Database size={14} /> Compliance Manager
+            </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glass-card p-12 text-center rounded-xl border-2 border-[#ffffff14] transition-all flex flex-col justify-center">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Main Interaction Area */}
+        <div className="lg:col-span-7 space-y-8">
+          <div className="glass-card p-10 rounded-3xl border border-white/10 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                <LayoutDashboard size={120} />
+            </div>
+
+            <div className="relative space-y-8">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xl font-black text-white tracking-tight">
+                            {activeMode === 'audit' ? 'Compliance Audit' : 'Update Knowledge Base'}
+                        </h2>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            {activeMode === 'audit' ? 'Analyze document against regulations' : 'Ingest new regulatory documents'}
+                        </p>
+                    </div>
+                </div>
+
+                {activeMode === 'manager' && !file && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Department</label>
+                            <input 
+                              value={department}
+                              onChange={(e) => setDepartment(e.target.value)}
+                              placeholder="e.g. Finance"
+                              className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Category</label>
+                            <select 
+                              value={category}
+                              onChange={(e) => setCategory(e.target.value)}
+                              className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-blue-500 outline-none appearance-none"
+                            >
+                                <option value="GST">GST</option>
+                                <option value="LABOR">LABOR</option>
+                                <option value="MCA">MCA</option>
+                                <option value="INCOME_TAX">INCOME TAX</option>
+                            </select>
+                        </div>
+                    </div>
+                )}
         {!file ? (
           <div 
             className={cn(
@@ -168,29 +293,117 @@ export default function LawIntelPage() {
             )}
           </div>
         )}
+            </div>
+          </div>
+
+          {activeMode === 'manager' && (
+              <div className="glass-card p-8 rounded-3xl border border-white/10 bg-blue-500/[0.02]">
+                  <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                          <History size={14} className="text-blue-500" /> Compliance History
+                      </h2>
+                      <div className="px-3 py-1 bg-slate-950 rounded-lg text-[9px] font-black text-slate-600 uppercase tracking-widest">
+                          {laws.length} Core Provisions
+                      </div>
+                  </div>
+
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                      {loadingLaws ? (
+                          <div className="py-10 text-center text-slate-600 animate-pulse">Synchronizing neural library...</div>
+                      ) : laws.map((law, i) => (
+                          <div 
+                            key={i} 
+                            onClick={() => fetchLawHistory(law.title, law.section)}
+                            className="p-4 bg-slate-950 border border-white/5 rounded-2xl hover:border-blue-500/50 cursor-pointer transition-all group"
+                          >
+                              <div className="flex items-center justify-between">
+                                  <div className="flex flex-col gap-1">
+                                      <span className="text-xs font-black text-white group-hover:text-blue-400 transition-colors">{law.title}</span>
+                                      <span className="text-[10px] font-bold text-slate-500">{law.section}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                      <span className="text-[9px] font-black text-slate-400 px-2 py-0.5 bg-white/5 rounded-md">v{law.version}</span>
+                                      <ChevronRight size={14} className="text-slate-700 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          )}
         </div>
 
-        {/* Latest Government Announcements */}
-        <div className="glass-card p-8 rounded-xl border border-white/10 h-[500px] overflow-y-auto flex flex-col">
-        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          <Scale size={20} className="text-blue-400" />
-          Latest Regulatory Announcements
-        </h2>
-        
-        {fetchingNews ? (
-          <div className="space-y-3">
-            <div className="skeleton h-4 w-3/4" />
-            <div className="skeleton h-4 w-full" />
-            <div className="skeleton h-4 w-5/6" />
-          </div>
-        ) : whatsNew ? (
-          <div 
-            className="prose prose-invert prose-sm max-w-none text-slate-300 [&>ul]:list-disc [&>ul]:pl-5 [&>ul>li]:mb-2 [&>ul>li>strong]:text-white"
-            dangerouslySetInnerHTML={{ __html: whatsNew }} 
-          />
-        ) : (
-          <p className="text-slate-500 italic">No recent announcements found.</p>
-        )}
+        {/* Sidebar Panel */}
+        <div className="lg:col-span-5 space-y-8">
+            {selectedLawHistory ? (
+                <div className="glass-card p-8 rounded-3xl border border-blue-500/20 bg-blue-500/[0.03] animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="flex items-center justify-between mb-8">
+                        <button onClick={() => setSelectedLawHistory(null)} className="text-[10px] font-black uppercase text-slate-500 hover:text-white flex items-center gap-2">
+                            <ArrowLeft size={14} /> Back to Library
+                        </button>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div>
+                            <h3 className="text-xl font-black text-white tracking-tight mb-1">{selectedLawHistory[0]?.title}</h3>
+                            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{selectedLawHistory[0]?.section}</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-2">Version Timeline</h4>
+                            {selectedLawHistory.map((ver, i) => (
+                                <div key={i} className={cn(
+                                    "p-5 rounded-2xl border transition-all",
+                                    ver.isLatest ? "bg-blue-600/10 border-blue-500/30" : "bg-slate-950 border-white/5 opacity-60 hover:opacity-100"
+                                )}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xs font-black text-white tracking-widest">VERSION {ver.version}</span>
+                                            {ver.isLatest && <span className="text-[8px] font-black bg-blue-500 text-white px-1.5 py-0.5 rounded">ACTIVE</span>}
+                                        </div>
+                                        <span className="text-[9px] font-bold text-slate-500">{new Date(ver.createdAt).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-300 line-clamp-2 mb-4 italic leading-relaxed">"{ver.summary}"</p>
+                                    
+                                    {!ver.isLatest && (
+                                        <button 
+                                          onClick={() => handleRestore(ver.id)}
+                                          className="w-full py-2 bg-white/5 hover:bg-white/10 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white rounded-lg border border-white/10 transition-all"
+                                        >
+                                            Restore this Version
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="glass-card p-8 rounded-3xl border border-white/10 h-fit">
+                    <h2 className="text-xl font-black text-white mb-6 flex items-center gap-2 tracking-tight">
+                        <Scale size={20} className="text-blue-400" />
+                        Regulatory Radar
+                    </h2>
+                    
+                    {fetchingNews ? (
+                        <div className="space-y-6">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="space-y-2">
+                                    <div className="h-3 bg-white/5 rounded-full w-3/4 animate-pulse" />
+                                    <div className="h-3 bg-white/5 rounded-full w-full animate-pulse" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : whatsNew ? (
+                        <div 
+                            className="prose prose-invert prose-sm max-w-none text-slate-400 [&>ul]:list-none [&>ul]:p-0 [&>ul>li]:mb-6 [&>ul>li]:p-4 [&>ul>li]:bg-slate-950 [&>ul>li]:border [&>ul>li]:border-white/5 [&>ul>li]:rounded-2xl [&>ul>li>a]:text-blue-400 [&>ul>li>a]:font-black [&>ul>li>a]:no-underline [&>ul>li>a]:uppercase [&>ul>li>a]:text-[10px] [&>ul>li>a]:tracking-[0.15em]"
+                            dangerouslySetInnerHTML={{ __html: whatsNew }} 
+                        />
+                    ) : (
+                        <p className="text-slate-500 italic text-sm">No recent announcements found.</p>
+                    )}
+                </div>
+            )}
         </div>
       </div>
     </div>

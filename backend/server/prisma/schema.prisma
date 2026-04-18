@@ -15,10 +15,11 @@ model Document {
   category         String   @default("INVOICE")
   status           String   @default("UPLOADED")
   // UPLOADED → EXTRACTING → EXTRACTED → VERIFYING → VERIFIED → FLAGGED
-  extractedData    String?  // JSON string
-  complianceScore  Int?
-  complianceReport String?  // JSON string
-  uploadedBy       String?
+  extractedData       String?  // JSON string
+  complianceScore     Int?
+  complianceReport    String?  // JSON string
+  complianceCheckMeta String?  // JSON string: map of law versions used
+  uploadedBy          String?
   projectId        String?  // Linked project
   project          Project? @relation(fields: [projectId], references: [id])
   createdAt        DateTime @default(now())
@@ -43,10 +44,14 @@ model LawUpdate {
   text          String
   summary       String
   category      String    // GST | LABOR | MCA | INCOME_TAX
+  department    String?   // User-defined department
   section       String?
   tags          String?   // JSON array
   sourceUrl     String?
   effectiveDate DateTime?
+  version       String    @default("1.0")
+  isLatest      Boolean   @default(true)
+  parentId      String?   // Reference to previous version
   vectorId      String?   // Reference to Qdrant point ID
   createdAt     DateTime  @default(now())
 }
