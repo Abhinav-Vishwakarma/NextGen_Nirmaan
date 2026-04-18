@@ -209,6 +209,80 @@ app.post('/api/ai/verify', async (req: Request, res: Response) => {
     }
 })
 
+const POLICY_EVALUATION_PROMPT = `
+You are an expert Compliance AI. Compare the following COMPANY POLICY against the provided COMPLIANCE LAWS.
+Evaluate how well the policy aligns with each law and what changes are required.
+
+Return ONLY valid JSON (no markdown fences). Use this exact format:
+{
+  "complianceScore": <number 0-100>,
+  "evaluations": [
+    {
+      "lawTitle": "string",
+      "status": "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT",
+      "gapAnalysis": "string",
+      "recommendations": "string"
+    }
+  ],
+  "overallSummary": "string"
+}
+
+COMPANY POLICY TEXT:
+{policy_text}
+
+COMPLIANCE LAWS:
+{laws_context}
+`
+
+app.post('/api/ai/evaluate-policy', async (req: Request, res: Response) => {
+    try {
+        const { filePath, mimeType, selectedLaws } = req.body
+        if (!filePath || !mimeType || !selectedLaws) {
+            return res.status(400).json({ error: 'filePath, mimeType, and selectedLaws are required' })
+        }
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Policy file not found' })
+        }
+
+        const fileBuffer = fs.readFileSync(filePath)
+        const base64Data = fileBuffer.toString('base64')
+
+        // 1. First, extract the text from the policy using Gemini
+        const extractionResult = await geminiPro.generateContent([
+            "Extract all readable text from this document for compliance analysis. Return ONLY the text.",
+            {
+                inlineData: {
+                    mimeType,
+                    data: base64Data,
+                },
+            },
+        ])
+        const policyText = extractionResult.response.text()
+
+        // 2. Prepare laws context
+        const lawContext = selectedLaws
+            .map((law: any, i: number) => `${i + 1}. ${law.title || law.payload?.title} (${law.section || law.payload?.section}):\n${law.text || law.payload?.text}`)
+            .join('\n\n')
+
+        // 3. Run evaluation
+        const prompt = POLICY_EVALUATION_PROMPT
+            .replace('{policy_text}', policyText)
+            .replace('{laws_context}', lawContext)
+
+        const evalResult = await geminiPro.generateContent(prompt)
+        const responseText = evalResult.response.text()
+
+        const jsonStr = responseText.replace(/```json\n?|```/g, '').trim()
+        const evaluation = JSON.parse(jsonStr)
+
+        res.json(evaluation)
+    } catch (error) {
+        console.error('Policy Evaluation error:', error)
+        res.status(500).json({ error: 'Failed to evaluate policy' })
+    }
+})
+
 
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {

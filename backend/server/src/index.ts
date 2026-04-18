@@ -549,6 +549,98 @@ app.patch('/api/projects/:id', async (req, res) => {
   }
 })
 
+// === POLICY EVALUATION API ===
+app.get('/api/policy-evaluations', async (req, res) => {
+  try {
+    const evaluations = await prisma.policyEvaluation.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
+    res.json({ evaluations })
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch policy evaluations' })
+  }
+})
+
+app.get('/api/policy-evaluations/:id', async (req, res) => {
+  try {
+    const evaluation = await prisma.policyEvaluation.findUnique({
+      where: { id: req.params.id }
+    })
+    if (!evaluation) return res.status(404).json({ error: 'Evaluation not found' })
+    res.json(evaluation)
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch evaluation' })
+  }
+})
+
+app.post('/api/policy-evaluations/evaluate', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    const file = req.file
+    if (!file) return res.status(400).json({ error: 'No file provided' })
+
+    const { selectedLaws, uploadedBy } = req.body
+    if (!selectedLaws) return res.status(400).json({ error: 'Selected laws are required' })
+
+    const laws = JSON.parse(selectedLaws)
+    
+    // 1. Create initial entry
+    const evaluation = await prisma.policyEvaluation.create({
+      data: {
+        policyName: file.originalname,
+        policyFilePath: file.filename,
+        selectedLaws: selectedLaws,
+        evaluatedBy: uploadedBy || 'Anonymous',
+        status: 'PENDING'
+      }
+    })
+
+    // 2. Call AI Server
+    const aiServerUrl = process.env.AI_SERVER_URL || 'http://localhost:5000'
+    const fullPath = path.join(uploadsDir, file.filename)
+
+    const aiResponse = await fetch(`${aiServerUrl}/api/ai/evaluate-policy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filePath: fullPath,
+        mimeType: file.mimetype,
+        selectedLaws: laws
+      })
+    })
+
+    if (!aiResponse.ok) {
+      throw new Error(`AI Evaluation failed: ${await aiResponse.text()}`)
+    }
+
+    const result = await aiResponse.json()
+
+    // 3. Update DB with results
+    const updated = await prisma.policyEvaluation.update({
+      where: { id: evaluation.id },
+      data: {
+        complianceScore: result.complianceScore,
+        overallSummary: result.overallSummary,
+        detailedResults: JSON.stringify(result.evaluations),
+        status: 'COMPLETED'
+      }
+    })
+
+    // Log the event
+    await prisma.systemLog.create({
+      data: {
+        eventType: 'POLICY_EVALUATED',
+        username: uploadedBy || 'Anonymous',
+        details: JSON.stringify({ evaluationId: updated.id, policyName: updated.policyName, score: updated.complianceScore })
+      }
+    })
+
+    res.json(updated)
+  } catch (error) {
+    console.error('Policy Evaluation Error:', error)
+    res.status(500).json({ error: 'Policy evaluation failed' })
+  }
+})
+
 // === SCRAPER API ===
 app.use('/api/scraper', scraperRoutes)
 

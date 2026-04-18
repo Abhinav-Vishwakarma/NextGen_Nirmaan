@@ -74,3 +74,17 @@ model Project {
   lastUpdated  DateTime @updatedAt
   createdAt    DateTime @default(now())
 }
+
+model PolicyEvaluation {
+  id               String   @id @default(uuid())
+  policyName       String
+  policyFilePath   String
+  selectedLaws     String   // JSON string: array of {id, title, section}
+  complianceScore  Int?
+  overallSummary   String?
+  detailedResults  String?  // JSON string: array of evaluations
+  status           String   @default("PENDING") // PENDING | COMPLETED | FAILED
+  evaluatedBy      String?
+  createdAt        DateTime @default(now())
+}
+

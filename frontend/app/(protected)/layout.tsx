@@ -1,6 +1,6 @@
 import type { JSX, ReactNode } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Folder, FileText, Bell, Scale, Activity } from 'lucide-react'
+import { LayoutDashboard, Folder, FileText, Bell, Scale, Activity, ShieldCheck } from 'lucide-react'
 import { ToastProvider } from '@/components/ui/Toast'
 
 import { UserSelector } from '@/components/layout/UserSelector'
@@ -40,6 +40,10 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps): JSX
             <Link href="/law-intel" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm font-medium">
               <Scale size={18} className="text-slate-400" />
               Law Intel
+            </Link>
+            <Link href="/policy-evaluator" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm font-medium">
+              <ShieldCheck size={18} className="text-slate-400" />
+              Policy Evaluator
             </Link>
             <Link href="/logs" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm font-medium">
               <Activity size={18} className="text-slate-400" />
