@@ -45,10 +45,10 @@ export default function AlertsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-16 stagger-children animate-fade-in">
+    <div className="max-w-7xl mx-auto pb-16 space-y-8 stagger-children animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white mb-2">System Alerts</h1>
-        <p className="text-slate-400 text-sm">Review compliance issues and system notifications</p>
+        <h1 className="text-4xl font-black tracking-tight text-white mb-2">System Alerts</h1>
+        <p className="text-sm text-slate-400">Review compliance issues and system notifications.</p>
       </div>
 
       {alerts.length === 0 ? (

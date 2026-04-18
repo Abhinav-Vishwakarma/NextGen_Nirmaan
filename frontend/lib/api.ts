@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_MAIN_API_URL || 'http://localhost:4000'
+export const API_BASE = process.env.NEXT_PUBLIC_MAIN_API_URL || 'http://localhost:4000'
 
 export const api = {
   get: async (endpoint: string) => {
@@ -28,6 +28,13 @@ export const api = {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
+    })
+    if (!res.ok) throw new Error(await res.text())
+    return res.json()
+  },
+  delete: async (endpoint: string) => {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      method: 'DELETE'
     })
     if (!res.ok) throw new Error(await res.text())
     return res.json()

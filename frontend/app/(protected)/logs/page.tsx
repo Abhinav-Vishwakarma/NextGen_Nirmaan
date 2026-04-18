@@ -54,14 +54,14 @@ export default function LogsPage() {
   })
 
   return (
-    <div className="max-w-6xl mx-auto stagger-children pb-16">
+    <div className="max-w-7xl mx-auto space-y-8 stagger-children pb-16">
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">
-            <Activity size={24} className="text-blue-500" />
+          <h1 className="text-4xl font-black tracking-tight text-white mb-2 flex items-center gap-3">
+            <Activity size={30} className="text-indigo-400" />
             Audit Logs
           </h1>
-          <p className="text-slate-400">Track system events, user actions, and compliance checks.</p>
+          <p className="text-sm text-slate-400">Track system events, user actions, and compliance checks.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -72,7 +72,7 @@ export default function LogsPage() {
               placeholder="Search logs..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-colors w-full sm:w-64"
+              className="pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 transition-colors w-full sm:w-64"
             />
           </div>
           
@@ -81,7 +81,7 @@ export default function LogsPage() {
             <select 
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="pl-9 pr-8 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-blue-500 transition-colors appearance-none w-full sm:w-auto cursor-pointer"
+              className="pl-9 pr-8 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors appearance-none w-full sm:w-auto cursor-pointer"
             >
               <option value="ALL" className="bg-[#12121a]">All Events</option>
               <option value="DOCUMENT_UPLOADED" className="bg-[#12121a]">Document Uploads</option>

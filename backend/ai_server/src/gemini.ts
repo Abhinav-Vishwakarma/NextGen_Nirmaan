@@ -12,7 +12,7 @@ const genAI = new GoogleGenerativeAI(apiKey)
 
 // We use standard gemini-2.5-flash which is multimodal and handles base64 PDFs/Images perfectly.
 export const geminiPro = genAI.getGenerativeModel({
-  model: 'gemini-3-flash-preview',
+  model: 'gemini-3.1-flash-lite-preview',
 })
 
 // Used for embeddings

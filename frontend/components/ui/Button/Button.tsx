@@ -38,11 +38,16 @@ export function Button({
     <button
       type="button"
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-        'disabled:cursor-not-allowed',
-        variantClasses[variant],
-        sizeClasses[size],
+        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-300',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950',
+        'disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98]',
+        variant === 'primary' && 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-[0_0_20px_-5px_rgba(79,70,229,0.5)] hover:shadow-[0_0_25px_-5px_rgba(79,70,229,0.6)]',
+        variant === 'secondary' && 'bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700',
+        variant === 'ghost' && 'bg-transparent text-slate-400 hover:text-white hover:bg-slate-800/50',
+        variant === 'danger' && 'bg-rose-600 text-white hover:bg-rose-500 shadow-[0_0_20px_-5px_rgba(225,29,72,0.4)]',
+        size === 'sm' && 'h-9 px-4 text-xs',
+        size === 'md' && 'h-11 px-6 text-sm',
+        size === 'lg' && 'h-14 px-8 text-base font-bold tracking-tight',
         className,
       )}
       disabled={resolvedDisabled}

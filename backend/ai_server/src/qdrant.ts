@@ -1,11 +1,22 @@
 import dotenv from 'dotenv'
+import { QdrantClient } from '@qdrant/js-client-rest'
+
 dotenv.config()
 
 const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333'
+const QDRANT_API_KEY = process.env.QDRANT_API_KEY
+
 export const COLLECTION_NAME = 'regulatory_library'
 
+// Initialize official client
+const client = new QdrantClient({
+  url: QDRANT_URL,
+  apiKey: QDRANT_API_KEY,
+  checkCompatibility: false,
+})
+
 export type QdrantPoint = {
-  id: number
+  id: string | number
   vector: number[]
   payload: Record<string, unknown>
 }
@@ -17,17 +28,16 @@ export type SearchResult = {
 
 export async function ensureCollection(): Promise<void> {
   try {
-    const res = await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}`)
-    if (res.ok) return 
+    const collections = await client.getCollections()
+    const exists = collections.collections.some(c => c.name === COLLECTION_NAME)
     
-    // Using Cosine and 768 vector sizes since we are using Gemini Embeddings
-    await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        vectors: { size: 3072, distance: 'Cosine' },
-      }),
+    if (exists) return
+    
+    // Using Cosine and 3072 vector sizes for Gemini Text Embedding 004
+    await client.createCollection(COLLECTION_NAME, {
+      vectors: { size: 3072, distance: 'Cosine' },
     })
+    
     console.log(`✅ Qdrant collection '${COLLECTION_NAME}' created/ensured`)
   } catch (err) {
     console.error('Qdrant ensureCollection error:', err)
@@ -35,57 +45,54 @@ export async function ensureCollection(): Promise<void> {
 }
 
 export async function upsertPoints(points: QdrantPoint[]): Promise<void> {
-  const res = await fetch(
-    `${QDRANT_URL}/collections/${COLLECTION_NAME}/points?wait=true`,
-    {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ points }),
-    }
-  )
-  if (!res.ok) {
-    throw new Error(`Qdrant upsert failed: ${await res.text()}`)
+  try {
+     await client.upsert(COLLECTION_NAME, {
+       wait: true,
+       points: points.map(p => ({
+         id: p.id,
+         vector: p.vector,
+         payload: p.payload
+       }))
+     })
+  } catch (err) {
+    console.error('Qdrant upsert failed:', err)
+    throw err
   }
 }
 
-export async function searchSimilar(vector: number[], limit = 5): Promise<SearchResult[]> {
-  const res = await fetch(
-    `${QDRANT_URL}/collections/${COLLECTION_NAME}/points/search`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        vector,
-        limit,
-        with_payload: true,
-      }),
-    }
-  )
+export async function searchSimilar(vector: number[], limit = 5, filter?: any): Promise<SearchResult[]> {
+  try {
+    const results = await client.search(COLLECTION_NAME, {
+      vector,
+      limit,
+      filter: filter || undefined,
+      with_payload: true,
+    })
 
-  if (!res.ok) throw new Error(`Qdrant search failed: ${await res.text()}`)
-  const data = await res.json()
-  return (data.result || []) as SearchResult[]
+    return results.map(hit => ({
+      payload: hit.payload as Record<string, unknown>,
+      score: hit.score,
+    }))
+  } catch (err) {
+    console.error('Qdrant search failed:', err)
+    throw err
+  }
 }
 
 export async function listPoints(limit = 20): Promise<SearchResult[]> {
-  const res = await fetch(
-    `${QDRANT_URL}/collections/${COLLECTION_NAME}/points/scroll`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        limit,
-        with_payload: true,
-      }),
-    }
-  )
+  try {
+    const data = await client.scroll(COLLECTION_NAME, {
+      limit,
+      with_payload: true,
+    })
 
-  if (!res.ok) throw new Error(`Qdrant scroll failed: ${await res.text()}`)
-  const data = await res.json()
-  // Scroll returns { result: { points: [...], next_page_offset: ... } }
-  const points = data.result?.points || []
-  return points.map((p: any) => ({
-    payload: p.payload,
-    score: 1.0 // Default score for listing
-  }))
+    const points = data.points || []
+    return points.map((p: any) => ({
+      payload: p.payload,
+      score: 1.0 // Default score for listing
+    }))
+  } catch (err) {
+    console.error('Qdrant scroll failed:', err)
+    throw err
+  }
 }

@@ -46,12 +46,12 @@ export default function DashboardPage() {
 
   const { stats, recentDocuments, recentAlerts, trendData } = data
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-8 stagger-children pb-12">
-      <div className="flex justify-between items-end">
+   return (
+      <div className="max-w-7xl mx-auto space-y-10 stagger-children pb-16">
+         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-2">Command Center</h1>
-          <p className="text-slate-400">Overview of your compliance posture and AI processing.</p>
+               <h1 className="text-4xl font-black tracking-tight text-white mb-2">Command Center</h1>
+               <p className="text-sm text-slate-400">Overview of your compliance posture and AI processing.</p>
         </div>
         <div className="text-sm text-slate-500">
            Last updated: {new Date().toLocaleTimeString()}

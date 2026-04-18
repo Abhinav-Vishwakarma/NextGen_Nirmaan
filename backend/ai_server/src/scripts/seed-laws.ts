@@ -4,11 +4,8 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333'
-const COLLECTION = 'regulatory_library'
-
 import { embedText } from '../gemini'
+import { ensureCollection, upsertPoints } from '../qdrant'
 
 type LawEntry = {
   id: string
@@ -19,16 +16,9 @@ type LawEntry = {
   text: string
 }
 
-
 async function main() {
-  console.log('Creating Qdrant collection...')
-  await fetch(`${QDRANT_URL}/collections/${COLLECTION}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      vectors: { size: 3072, distance: 'Cosine' },
-    }),
-  })
+  console.log('Ensuring Qdrant collection exists...')
+  await ensureCollection()
 
   // We are storing mock laws data relative to frontend since both have access
   const lawsPath = path.join(__dirname, '..', '..', '..', '..', 'frontend', 'data', 'laws.json')
@@ -69,16 +59,11 @@ async function main() {
     payload: { ...p.payload, law_id: p.id },
   }))
 
-  const pushReq = await fetch(`${QDRANT_URL}/collections/${COLLECTION}/points`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ points: qdrantPoints }),
-  })
-
-  if(pushReq.ok) {
-     console.log(`✅ Seeded ${points.length} law vectors into Qdrant`)
-  } else {
-     console.error("Failed to seed Qdrant", await pushReq.text())
+  try {
+    await upsertPoints(qdrantPoints)
+    console.log(`✅ Seeded ${points.length} law vectors into Qdrant`)
+  } catch (err) {
+    console.error("Failed to seed Qdrant:", err)
   }
 }
 
