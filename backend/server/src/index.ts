@@ -434,12 +434,25 @@ app.post('/api/documents/:id/verify', async (req, res) => {
 app.get("/api/ai/laws", async (req: Request, res: Response) => {
   try {
     const aiServerUrl = process.env.AI_SERVER_URL || "http://localhost:5000"
-    const aiRes = await fetch(`${aiServerUrl}/api/ai/laws`)
-    if (!aiRes.ok) throw new Error(await aiRes.text())
+    const aiRes = await fetch(`${aiServerUrl}/api/ai/laws`).catch(e => {
+        throw new Error(`AI_SERVER_UNREACHABLE: ${e.message}`)
+    })
+    
+    if (!aiRes.ok) {
+        const errorText = await aiRes.text()
+        throw new Error(`AI_SERVER_ERROR: ${errorText}`)
+    }
+    
     const data = await aiRes.json()
     res.json(data)
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch laws" })
+  } catch (error: any) {
+    console.error("Laws proxy error:", error.message)
+    res.status(500).json({ 
+        error: "Failed to fetch laws", 
+        details: error.message.includes("AI_SERVER_UNREACHABLE") 
+            ? "AI Analysis server is currently offline." 
+            : "AI Analysis server returned an error."
+    })
   }
 })
 

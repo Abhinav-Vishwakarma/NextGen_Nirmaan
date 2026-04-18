@@ -81,18 +81,21 @@ export async function searchSimilar(vector: number[], limit = 5, filter?: any): 
 
 export async function listPoints(limit = 20): Promise<SearchResult[]> {
   try {
+    console.log(`🔍 Listing up to ${limit} points from collection: ${COLLECTION_NAME}`)
     const data = await client.scroll(COLLECTION_NAME, {
       limit,
       with_payload: true,
     })
 
     const points = data.points || []
+    console.log(`✅ Retrieved ${points.length} points from Qdrant.`)
+    
     return points.map((p: any) => ({
       payload: p.payload,
       score: 1.0 // Default score for listing
     }))
   } catch (err) {
-    console.error('Qdrant scroll failed:', err)
+    console.error('❌ Qdrant scroll failed:', err)
     throw err
   }
 }
