@@ -1,34 +1,188 @@
 [
-    {
-      "id": "GST_SEC_31",
-      "title": "Tax Invoice Requirements",
-      "section": "Section 31 of CGST Act",
-      "category": "GST",
-      "tags": ["invoice", "gstin", "mandatory"],
-      "text": "A registered person supplying taxable goods shall, before or at the time of removal of goods for supply to the recipient, issue a tax invoice showing the description, quantity and value of goods, the tax charged thereon and such other particulars as may be prescribed. The invoice must clearly indicate the GSTIN of both the supplier and the recipient (if registered)."
-    },
-    {
-      "id": "GST_MATH_01",
-      "title": "Computation of Taxable Value and Tax Amount",
-      "section": "Rule 46(f) of CGST Rules",
-      "category": "GST",
-      "tags": ["computation", "math", "total"],
-      "text": "The taxable value of the supply of goods or services, taking into account discount or abatement, shall be computed correctly. The total tax (CGST + SGST or IGST) must mathematically match the specified rate applied directly to the listed taxable value. Any discrepancy exceeding ₹1 constitutes an invalid tax invoice."
-    },
-    {
-      "id": "GST_HSN_REQ",
-      "title": "HSN Code Declaration",
-      "section": "Notification No. 78/2020-Central Tax",
-      "category": "GST",
-      "tags": ["hsn", "classification"],
-      "text": "It is mandatory to mention the HSN (Harmonized System of Nomenclature) code for all B2B (Business to Business) tax invoices regardless of turnover. The HSN code mentioned must accurately represent the description of the goods or services."
-    },
-    {
-      "id": "GST_INTERSTATE_IGST",
-      "title": "Inter-state vs Intra-state Tax Applicability",
-      "section": "Section 7 and 8 of IGST Act",
-      "category": "GST",
-      "tags": ["igst", "cgst", "sgst", "place_of_supply"],
-      "text": "If the location of the supplier and the place of supply are in the same State or Union Territory, it is an intra-state supply requiring CGST and SGST. If the location of the supplier and the place of supply are in different States, it is an inter-state supply requiring IGST exclusively."
-    }
+  {
+    "id": "GST_SEC_31",
+    "title": "Tax Invoice Requirements",
+    "section": "Section 31 of CGST Act",
+    "category": "GST",
+    "tags": [
+      "invoice",
+      "gstin",
+      "mandatory"
+    ],
+    "text": "A registered person supplying taxable goods shall, before or at the time of removal of goods for supply to the recipient, issue a tax invoice showing the description, quantity and value of goods, the tax charged thereon and such other particulars as may be prescribed. The invoice must clearly indicate the GSTIN of both the supplier and the recipient (if registered)."
+  },
+  {
+    "id": "GST_MATH_01",
+    "title": "Computation of Taxable Value and Tax Amount",
+    "section": "Rule 46(f) of CGST Rules",
+    "category": "GST",
+    "tags": [
+      "computation",
+      "math",
+      "total"
+    ],
+    "text": "The taxable value of the supply of goods or services, taking into account discount or abatement, shall be computed correctly. The total tax (CGST + SGST or IGST) must mathematically match the specified rate applied directly to the listed taxable value. Any discrepancy exceeding ₹1 constitutes an invalid tax invoice."
+  },
+  {
+    "id": "GST_HSN_REQ",
+    "title": "HSN Code Declaration",
+    "section": "Notification No. 78/2020-Central Tax",
+    "category": "GST",
+    "tags": [
+      "hsn",
+      "classification"
+    ],
+    "text": "It is mandatory to mention the HSN (Harmonized System of Nomenclature) code for all B2B (Business to Business) tax invoices regardless of turnover. The HSN code mentioned must accurately represent the description of the goods or services."
+  },
+  {
+    "id": "GST_INTERSTATE_IGST",
+    "title": "Inter-state vs Intra-state Tax Applicability",
+    "section": "Section 7 and 8 of IGST Act",
+    "category": "GST",
+    "tags": [
+      "igst",
+      "cgst",
+      "sgst",
+      "place_of_supply"
+    ],
+    "text": "If the location of the supplier and the place of supply are in the same State or Union Territory, it is an intra-state supply requiring CGST and SGST. If the location of the supplier and the place of supply are in different States, it is an inter-state supply requiring IGST exclusively."
+  },
+  {
+    "id": "RERA_REG_REQ",
+    "title": "Mandatory Project Registration",
+    "section": "Section 3 of RERA Act 2016",
+    "category": "RERA",
+    "tags": [
+      "registration",
+      "threshold",
+      "approval"
+    ],
+    "text": "No promoter shall advertise, market, book, sell or offer for sale, or invite persons to purchase in any manner any plot, apartment or building, as the case may be, in any real estate project or part of it, in any planning area, without registering the real estate project with the Real Estate Regulatory Authority. This is mandatory for projects where the area of land proposed to be developed exceeds 500 square meters or the number of apartments proposed to be developed exceeds eight."
+  },
+  {
+    "id": "RERA_ESCROW_70",
+    "title": "Financial Discipline & Escrow Account",
+    "section": "Section 4(2)(l)(D) of RERA Act",
+    "category": "RERA",
+    "tags": [
+      "escrow",
+      "funds",
+      "audit"
+    ],
+    "text": "Seventy per cent of the amounts realized for the real estate project from the allottees, from time to time, shall be deposited in a separate account to be maintained in a scheduled bank to cover the cost of construction and the land cost and shall be used only for that purpose. Withdrawal from the account must be certified by an engineer, an architect and a chartered accountant in practice."
+  },
+  {
+    "id": "IT_TDS_194C",
+    "title": "TDS on Contractor Payments",
+    "section": "Section 194C of Income Tax Act 1961",
+    "category": "TDS",
+    "tags": [
+      "tax",
+      "deduction",
+      "contractor"
+    ],
+    "text": "Any person responsible for paying any sum to any resident contractor for carrying out any work (including supply of labour) in pursuance of a contract shall deduct an amount equal to 1% where the payment is being made to an individual or a Hindu undivided family, and 2% where the payment is being made to any other person. No deduction is required if a single sum does not exceed ₹30,000 or the aggregate sums in a financial year do not exceed ₹1,00,000."
+  },
+  {
+    "id": "EPF_COMPLIANCE",
+    "title": "Employees' Provident Fund Contributions",
+    "section": "EPF & MP Act 1952",
+    "category": "LABOUR",
+    "tags": [
+      "epf",
+      "pension",
+      "contribution",
+      "cap"
+    ],
+    "text": "Establishments employing 20 or more persons are mandatory covered under the EPF Act. Both the employer and the employee contribute 12% of the basic wages, dearness allowance, and retaining allowance towards the EPF. Contribution is capped at a Basic Salary of ₹15,000 (Maximum ₹1,800/month) for mandatory schemes."
+  },
+  {
+    "id": "ESI_COMPLIANCE",
+    "title": "Employees' State Insurance Coverage",
+    "section": "Section 1(5) of ESI Act 1948",
+    "category": "LABOUR",
+    "tags": [
+      "esi",
+      "insurance",
+      "health"
+    ],
+    "text": "ESI is applicable to factories and other establishments where 10 or more persons are employed. The current contribution rates are 3.25% by the employer and 0.75% by the employee of the total wages. It is mandatory for employees earning wages up to ₹21,000 per month."
+  },
+  {
+    "id": "MSME_DELAYED_PAYMENT",
+    "title": "MSME Payment Timelines & Penalties",
+    "section": "Section 15 and 16 of MSMED Act 2006",
+    "category": "MSME",
+    "tags": [
+      "payment",
+      "interest",
+      "vendor"
+    ],
+    "text": "Where any supplier supplies any goods or renders any services to any buyer, the buyer shall make payment therefor on or before the date agreed upon between him and the supplier in writing or, where there is no agreement in this behalf, before the appointed day. In no case shall the period agreed upon between the supplier and the buyer in writing exceed 45 days. Failure to pay within the deadline makes the buyer liable to pay compound interest with monthly rests to the supplier on that amount from the appointed day at three times of the bank rate notified by the RBI."
+  },
+  {
+    "id": "BOCW_CESS_1",
+    "title": "BOCW Welfare Cess",
+    "section": "BOCW Cess Act 1996",
+    "category": "LABOUR",
+    "tags": [
+      "cess",
+      "welfare",
+      "safety"
+    ],
+    "text": "A levy and collection of a cess is mandated at the rate of 1% of the cost of construction incurred by an employer. This amount is utilized for the welfare of building and other construction workers, providing for their safety, health, and social security."
+  },
+  {
+    "id": "SOP_GST_2026",
+    "title": "Standard Operating Procedure: Invoicing & GST Compliance",
+    "section": "Document ID: COMP-GST-2026-001 (Version 1.2)",
+    "category": "SOP",
+    "tags": [
+      "gst",
+      "invoice",
+      "sop",
+      "policy",
+      "internal"
+    ],
+    "text": "Standard Operating Procedure: Invoicing & GST Compliance. This policy outlines the mandatory procedures for tax invoice issuance and GST calculation to ensure 100% adherence to the CGST Act 2017 and IGST Act 2017.\n1. Tax Invoice Issuance (Section 31): Goods must have an invoice issued before or at the time of removal for supply. Services must have an invoice issued within 30 days of provision.\n2. Mandatory Invoice Particulars (Rule 46): Invoices must contain a consecutive serial number (max 16 chars), GSTIN of supplier and recipient, description of goods/services with HSN/SAC code, taxable value, tax rates (CGST, SGST, IGST), and total tax. Rule 46(f) requires the address of delivery for unregistered recipients if the value exceeds ₹50,000.\n3. HSN Declaration: Mandatory HSN digits are 4 digits for aggregate turnover up to ₹5 Crores (B2B) and 6 digits for turnover above ₹5 Crores.\n4. Tax Applicability: Intra-state (Section 8) applies if Supplier Location and POS are in the same state (Apply CGST + SGST). Inter-state (Section 7) applies if Supplier Location and POS are in different states (Apply IGST)."
+  },
+  {
+    "id": "GST_HSN_8471",
+    "title": "HSN 8471 - Computers and Peripherals",
+    "section": "Customs Tariff Act - HSN 8471",
+    "category": "GST",
+    "tags": [
+      "hsn",
+      "8471",
+      "computers",
+      "rate"
+    ],
+    "text": "HSN code 8471 covers Automatic data processing machines and units thereof; magnetic or optical readers, machines for transcribing data onto data media in coded form and machines for processing such data. The standard GST rate for goods under HSN 8471 (Computers and Peripherals) is 18%."
+  },
+  {
+    "id": "GST_HSN_9983",
+    "title": "HSN 9983 - IT Design and Development Services",
+    "section": "Service Accounting Code (SAC) 9983",
+    "category": "GST",
+    "tags": [
+      "hsn",
+      "sac",
+      "9983",
+      "it_services",
+      "rate"
+    ],
+    "text": "HSN/SAC code 9983 covers Other professional, technical and business services. Specifically, for IT Design and Development services, the standard GST rate is 18% (comprizing 9% CGST and 9% SGST for intra-state supplies)."
+  },
+  {
+    "id": "PROFESSIONAL_TAX_GEN",
+    "title": "Professional Tax Applicability",
+    "section": "State Profession Tax Acts",
+    "category": "TAX",
+    "tags": [
+      "ptax",
+      "professional_tax",
+      "slab"
+    ],
+    "text": "Professional Tax is a state-level tax on professions, trades, callings and employments. It is slab-based. Typically, a tax of ₹200 is applicable for monthly income above ₹20,000 in many Indian states. The employer is responsible for deducting and depositing this tax."
+  }
 ]
