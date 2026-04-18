@@ -173,6 +173,37 @@ app.get('/api/documents/:id', async (req, res) => {
   }
 })
 
+app.delete('/api/documents/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const doc = await prisma.document.findUnique({ where: { id } })
+    if (!doc) return res.status(404).json({ error: 'Document not found' })
+
+    // 1. Delete physical file
+    const filePath = path.join(uploadsDir, doc.filePath)
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath)
+    }
+
+    // 2. Delete database record
+    await prisma.document.delete({ where: { id } })
+
+    // Log the event
+    await prisma.systemLog.create({
+      data: {
+        eventType: 'DOCUMENT_DELETED',
+        username: 'System',
+        details: JSON.stringify({ documentId: id, fileName: doc.fileName })
+      }
+    })
+
+    res.json({ success: true, message: 'Document deleted successfully' })
+  } catch (error) {
+    console.error('Delete Document Error:', error)
+    res.status(500).json({ error: 'Failed to delete document' })
+  }
+})
+
 // Handle document upload
 app.post('/api/documents/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -244,13 +275,10 @@ app.post('/api/documents/upload', upload.single('file'), async (req: Request, re
       status: updatedDoc.status,
       extractedData: ocrData.extractedData
     })
-  } catch (error) {
-    console.error('Upload Error:', error)
-    if (error instanceof Error) {
-      res.status(400).json({ error: error.message })
-    } else {
-      res.status(500).json({ error: 'Upload failed' })
-    }
+  } catch (error: any) {
+    console.error('OCR Extraction error:', error)
+    const message = error?.message || 'OCR Extraction failed'
+    res.status(500).json({ error: message })
   }
 })
 
@@ -283,7 +311,8 @@ app.post('/api/documents/:id/ingest', async (req, res) => {
     })
 
     if (!ocrResponse.ok) {
-        throw new Error(`AI Extraction failed: ${await ocrResponse.text()}`)
+        const errorData = await ocrResponse.json().catch(() => ({ error: 'AI Extraction failed' }))
+        throw new Error(errorData.error || `AI Extraction failed: ${await ocrResponse.text()}`)
     }
 
     const ocrData = await ocrResponse.json()
@@ -298,9 +327,9 @@ app.post('/api/documents/:id/ingest', async (req, res) => {
     })
 
     res.json(updatedDoc)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ingestion Error:', error)
-    res.status(500).json({ error: 'Ingestion failed' })
+    res.status(500).json({ error: error?.message || 'Ingestion failed' })
   }
 })
 
@@ -315,16 +344,37 @@ app.post('/api/documents/:id/verify', async (req, res) => {
      }
 
      const aiServerUrl = process.env.AI_SERVER_URL || 'http://localhost:5000'
+     
+     // Fetch project compliances if linked
+     let projectCompliances = []
+     if (doc.projectId) {
+         const project = await prisma.project.findUnique({ where: { id: doc.projectId } })
+         if (project && project.compliances) {
+             projectCompliances = JSON.parse(project.compliances)
+         }
+     }
+
      const verifyResponse = await fetch(`${aiServerUrl}/api/ai/verify`, {
          method: 'POST',
          headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({
-             extractedData: JSON.parse(doc.extractedData)
+             extractedData: JSON.parse(doc.extractedData),
+             selectedLaws: projectCompliances
          })
      })
 
      if (!verifyResponse.ok) {
-         throw new Error(`AI Check failed: ${await verifyResponse.text()}`)
+         let errorMessage = 'AI Check failed';
+         try {
+             const errorData = await verifyResponse.json();
+             errorMessage = errorData.error || errorMessage;
+         } catch {
+             // If not JSON, try text
+             try {
+                 errorMessage = await verifyResponse.text();
+             } catch {}
+         }
+         throw new Error(errorMessage)
      }
 
      const verifyData = await verifyResponse.json()
@@ -335,7 +385,10 @@ app.post('/api/documents/:id/verify', async (req, res) => {
          data: {
              status: verifyData.status === 'APPROVED' ? 'VERIFIED' : 'FLAGGED',
              complianceScore: verifyData.complianceScore,
-             complianceReport: JSON.stringify(verifyData.complianceReport)
+             complianceReport: JSON.stringify({
+                 ...verifyData.complianceReport,
+                 financialExposure: verifyData.financialExposure
+             })
          }
      })
 
@@ -371,9 +424,9 @@ app.post('/api/documents/:id/verify', async (req, res) => {
      }
 
      res.json(updated)
-  } catch (error) {
-      console.error(error)
-      res.status(500).json({ error: 'AI Proxy Verify Failed' })
+  } catch (error: any) {
+      console.error('AI Verify Error:', error)
+      res.status(500).json({ error: error?.message || 'AI Proxy Verify Failed' })
   }
 })
 
@@ -560,6 +613,138 @@ app.patch('/api/projects/:id', async (req, res) => {
     console.error('Project Update Error:', error)
     res.status(500).json({ error: 'Failed to update project' })
   }
+})
+
+// === FILING API ===
+app.post('/api/projects/:id/file', async (req, res) => {
+    try {
+        const { id } = req.params
+        const { force = false, filedBy = 'System' } = req.body
+
+        const project = await prisma.project.findUnique({
+            where: { id },
+            include: { documents: true }
+        })
+
+        if (!project) return res.status(404).json({ error: 'Project not found' })
+        
+        // 1. Check compliance if not forced
+        if (!force) {
+            const nonCompliant = project.documents.filter(d => (d.complianceScore || 0) < 100)
+            if (nonCompliant.length > 0) {
+                return res.status(400).json({ 
+                    error: 'COMPLIANCE_LOCK', 
+                    message: `${nonCompliant.length} documents are not 100% compliant. Use "Force File" to bypass.`,
+                    details: nonCompliant.map(d => ({ id: d.id, name: d.fileName, score: d.complianceScore }))
+                })
+            }
+        }
+
+        // 2. Mock Government Handshake
+        // In a real app, this would be an async job calling a government API
+        const filingId = `GOV-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
+        
+        // 3. Generate Signed JSON
+        const compliancesUsed = project.compliances ? JSON.parse(project.compliances) : []
+        const signedJson = {
+            metadata: {
+                filingId,
+                projectId: project.id,
+                projectName: project.name,
+                timestamp: new Date().toISOString(),
+                filedBy
+            },
+            auditTrail: {
+                logicVersions: compliancesUsed.map((c: any) => ({
+                    lawId: c.payload?.law_id || c.id,
+                    title: c.payload?.title || c.title,
+                    version: c.payload?.version || "1.0",
+                    checkDate: new Date().toISOString()
+                })),
+                documentHashes: project.documents.map(d => ({
+                    id: d.id,
+                    name: d.fileName,
+                    score: d.complianceScore
+                }))
+            },
+            signature: `sha256:mock_sig_${Buffer.from(project.id).toString('hex').substring(0, 16)}`
+        }
+
+        // 4. Generate Mock Challan
+        const totalTax = project.documents.reduce((sum, d) => {
+            try {
+                const data = JSON.parse(d.extractedData || '{}')
+                return sum + (data.total_tax || 0)
+            } catch { return sum }
+        }, 0)
+
+        const challan = {
+            challanNumber: `CHL-${Date.now().toString().slice(-8)}`,
+            amount: totalTax || 50000, // Mock amount if no tax found
+            beneficiary: "GST Council of India",
+            expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            status: "GENERATED",
+            signedManifest: signedJson
+        }
+
+        // 5. Update Project
+        const updated = await prisma.project.update({
+            where: { id },
+            data: {
+                filedAt: new Date(),
+                status: 'COMPLETED',
+                challanData: JSON.stringify(challan)
+            }
+        })
+
+        // Log the event
+        await prisma.systemLog.create({
+            data: {
+                eventType: 'PROJECT_FILED',
+                username: filedBy,
+                details: JSON.stringify({ projectId: id, filingId, force })
+            }
+        })
+
+        res.json({
+            success: true,
+            filingId,
+            challan,
+            signedJson
+        })
+
+    } catch (error) {
+        console.error('Filing Error:', error)
+        res.status(500).json({ error: 'Filing process failed' })
+    }
+})
+
+app.post('/api/projects/:id/reset', async (req, res) => {
+    try {
+        const { id } = req.params
+        const project = await prisma.project.update({
+            where: { id },
+            data: {
+                filedAt: null,
+                status: 'ACTIVE',
+                challanData: null
+            }
+        })
+
+        // Log the reset
+        await prisma.systemLog.create({
+            data: {
+                eventType: 'PROJECT_RESET',
+                username: 'System',
+                details: JSON.stringify({ projectId: id })
+            }
+        })
+
+        res.json({ success: true, project })
+    } catch (error) {
+        console.error('Reset Error:', error)
+        res.status(500).json({ error: 'Failed to reset project' })
+    }
 })
 
 // === POLICY EVALUATION API ===

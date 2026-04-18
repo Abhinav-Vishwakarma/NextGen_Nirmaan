@@ -27,13 +27,20 @@ import {
   Fingerprint,
   History,
   ShieldCheck,
-  LayoutDashboard
+  LayoutDashboard,
+  Zap,
+  Download,
+  FileBadge,
+  Stamp,
+  Trash2,
+  RotateCw
 } from 'lucide-react'
 import Link from 'next/link'
 import { api, API_BASE } from '@/lib/api'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/components/ui/Toast'
+import { ComplianceRiskCard } from '@/components/ComplianceRiskCard'
 
 export default function ProjectDetailsPage() {
   const params = useParams()
@@ -54,6 +61,10 @@ export default function ProjectDetailsPage() {
 
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [isUploading, setIsUploading] = useState(false)
+
+  const [isFiling, setIsFiling] = useState(false)
+  const [filingStep, setFilingStep] = useState<'idle' | 'connecting' | 'uploading' | 'responding' | 'success'>('idle')
+  const [filingError, setFilingError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProjectDetails()
@@ -133,9 +144,15 @@ export default function ProjectDetailsPage() {
         setAuditStatus(prev => ({ ...prev, [doc.id]: 'verifying' }))
         await api.post(`/api/documents/${doc.id}/verify`, {})
         setAuditStatus(prev => ({ ...prev, [doc.id]: 'done' }))
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Audit failed for ${doc.id}:`, error)
         setAuditStatus(prev => ({ ...prev, [doc.id]: 'error' }))
+        showToast({ 
+          title: 'Artifact Audit Failed', 
+          message: `${doc.fileName}: ${error.message || 'Unknown internal error'}`, 
+          type: 'error',
+          duration: 6000 
+        })
       }
     }
 
@@ -201,6 +218,84 @@ export default function ProjectDetailsPage() {
     }
   }
 
+  const handleFileProject = async (force: boolean = false) => {
+    setIsFiling(true)
+    setFilingError(null)
+    setFilingStep('connecting')
+    
+    showToast({ 
+        title: force ? 'Initiating Force Filing' : 'Government Handshake Started', 
+        message: 'Establishing secure link with regulatory server...', 
+        type: 'info' 
+    })
+
+    try {
+        // Mock Step 1: Connecting (1.5s)
+        await new Promise(r => setTimeout(r, 1500))
+        
+        // Mock Step 2: Uploading (2s)
+        setFilingStep('uploading')
+        await new Promise(r => setTimeout(r, 2000))
+        
+        // Mock Step 3: Responding (1.5s)
+        setFilingStep('responding')
+        await new Promise(r => setTimeout(r, 1500))
+
+        const userName = localStorage.getItem('nextgen_user_name') || 'Aditya Sharma'
+        const res = await api.post(`/api/projects/${params.id}/file`, { force, filedBy: userName })
+        
+        if (res.success) {
+            setFilingStep('success')
+            showToast({ 
+                title: 'Filing Successful', 
+                message: `Challan ${res.challan.challanNumber} generated. Project status updated.`, 
+                type: 'success' 
+            })
+            fetchProjectDetails()
+        }
+    } catch (error: any) {
+        console.error('Filing failed:', error)
+        setFilingStep('idle')
+        if (error.error === 'COMPLIANCE_LOCK') {
+            setFilingError(error.message)
+        }
+        showToast({ 
+            title: 'Filing Rejected', 
+            message: error.message || 'The government server rejected the submission.', 
+            type: 'error' 
+        })
+    } finally {
+        setIsFiling(false)
+    }
+  }
+
+  const handleResetFiling = async () => {
+    if (!confirm("Are you sure you want to reset the filing? This will clear the government challan data.")) return
+    
+    try {
+        await api.post(`/api/projects/${params.id}/reset`, {})
+        setFilingStep('idle')
+        showToast({ title: 'Filing Reset', message: 'Project status reverted to active. You can file again.', type: 'success' })
+        fetchProjectDetails()
+    } catch (error) {
+        console.error('Reset failed:', error)
+        showToast({ title: 'System Error', message: 'Failed to reset project filing.', type: 'error' })
+    }
+  }
+
+  const handleDeleteDocument = async (docId: string, fileName: string) => {
+      if (!confirm(`Are you sure you want to permanently delete "${fileName}"?`)) return
+      
+      try {
+          await api.delete(`/api/documents/${docId}`)
+          showToast({ title: 'Artifact Purged', message: 'Document has been removed from secure storage.', type: 'success' })
+          fetchProjectDetails()
+      } catch (error) {
+          console.error('Delete failed:', error)
+          showToast({ title: 'Protocol Failure', message: 'Failed to delete artifact.', type: 'error' })
+      }
+  }
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-6 animate-pulse">
@@ -233,8 +328,29 @@ export default function ProjectDetailsPage() {
 
   const currentCompliances = isEditingCompliances ? tempCompliances : (project.compliances ? JSON.parse(project.compliances) : [])
 
+  const aggregateExposure = project.documents?.reduce((acc: any, doc: any) => {
+    if (doc.complianceReport) {
+        try {
+            const report = JSON.parse(doc.complianceReport);
+            if (report && report.financialExposure) {
+                acc.lateFee += report.financialExposure.lateFee || 0;
+                acc.interest += report.financialExposure.interest || 0;
+                acc.statutoryPenalties += report.financialExposure.statutoryPenalty || 0;
+                acc.total += report.financialExposure.total || 0;
+            }
+        } catch (e) {
+            console.error("Invalid report JSON for doc:", doc.id);
+        }
+    }
+    return acc;
+  }, { lateFee: 0, interest: 0, statutoryPenalties: 0, total: 0, currency: 'INR' }) || { lateFee: 0, interest: 0, statutoryPenalties: 0, total: 0, currency: 'INR' };
+
+  const averageScore = project.documents?.length > 0
+    ? Math.round(project.documents.reduce((sum: number, d: any) => sum + (d.complianceScore || 0), 0) / project.documents.length)
+    : 100;
+
   return (
-    <div className="max-w-7xl mx-auto space-y-12 animate-fadeInUp pb-24">
+    <div className="max-w-7xl mx-auto space-y-10 animate-fadeInUp pb-16">
       <div className="mesh-bg" />
       
       {/* Dynamic Navigation */}
@@ -261,7 +377,7 @@ export default function ProjectDetailsPage() {
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-10">
           <div className="space-y-6 flex-1">
             <div className="flex items-center gap-4 flex-wrap">
-                <h1 className="text-6xl font-black text-white tracking-tighter leading-none">{project.name}</h1>
+                <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-none">{project.name}</h1>
                 <span className={`px-4 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-[0.2em] shadow-lg ${
                     project.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-emerald-500/5' :
                     project.status === 'COMPLETED' ? 'bg-slate-800 text-slate-400 border-slate-700' :
@@ -293,8 +409,14 @@ export default function ProjectDetailsPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 gap-4">
-            <div className="text-right flex flex-col items-end">
+          <div className="flex shrink-0 gap-6 items-center">
+            {aggregateExposure.total > 0 && (
+                <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 mb-1 animate-pulse">Compliance Risk</p>
+                    <p className="text-2xl font-black text-white tracking-tighter">₹{aggregateExposure.total.toLocaleString()}</p>
+                </div>
+            )}
+            <div className="text-right flex flex-col items-end border-l border-slate-800 pl-6">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 mb-2">Project Integrity</p>
                 <div className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-2xl">
                     <Fingerprint size={16} className="text-indigo-400" />
@@ -304,6 +426,20 @@ export default function ProjectDetailsPage() {
           </div>
         </div>
       </section>
+
+      {aggregateExposure.total > 0 && (
+        <ComplianceRiskCard 
+            exposure={{
+                lateFee: aggregateExposure.lateFee,
+                interest: aggregateExposure.interest,
+                statutoryPenalty: aggregateExposure.statutoryPenalties,
+                total: aggregateExposure.total,
+                currency: 'INR'
+            }}
+            score={averageScore}
+            className="border-none bg-rose-500/[0.03]"
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Left Column: Logic & Status */}
@@ -465,6 +601,13 @@ export default function ProjectDetailsPage() {
                             >
                                 <ExternalLink size={16} />
                             </a>
+                            <button 
+                                onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
+                                className="p-2.5 bg-slate-900 text-slate-700 hover:text-rose-500 rounded-xl transition-all"
+                                title="Delete Document"
+                            >
+                                <Trash2 size={16} />
+                            </button>
                         </div>
                       </div>
                     </div>
@@ -480,6 +623,194 @@ export default function ProjectDetailsPage() {
                 </div>
               )}
             </div>
+          </section>
+
+          {/* Government Filing & Compliance lock */}
+          <section className="glass-panel p-8 space-y-8 relative overflow-hidden">
+            {project.filedAt && (
+                <div className="absolute top-0 right-0 p-6">
+                    <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full text-emerald-500">
+                        <Stamp size={14} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Officially Filed</span>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex items-center gap-4">
+                <div className="p-3 bg-amber-500/10 rounded-2xl text-amber-500 border border-amber-500/20">
+                    <Zap size={24} />
+                </div>
+                <div>
+                    <h2 className="text-2xl font-black text-white tracking-tight">Compliance Filing</h2>
+                    <p className="text-xs font-medium text-slate-500">Government gateway for GST & TDR submission.</p>
+                </div>
+            </div>
+
+            {!project.filedAt ? (
+                <div className="space-y-6">
+                    <div className="p-6 bg-slate-950 border border-slate-900 rounded-3xl space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest">Filing Readiness</h3>
+                            {project.documents?.every((d: any) => d.complianceScore === 100) ? (
+                                <span className="text-[10px] font-black text-emerald-400 flex items-center gap-1.5"><CheckCircle2 size={12}/> 100% Compliant</span>
+                            ) : (
+                                <span className="text-[10px] font-black text-amber-500 flex items-center gap-1.5"><AlertCircle size={12}/> Compliance Pending</span>
+                            )}
+                        </div>
+                        
+                        <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                            <div 
+                                className="h-full bg-indigo-500 transition-all duration-1000" 
+                                style={{ width: `${(project.documents?.filter((d: any) => d.complianceScore === 100).length / (project.documents?.length || 1)) * 100}%` }}
+                            />
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-medium">
+                            {project.documents?.filter((d: any) => d.complianceScore === 100).length} of {project.documents?.length} artifacts meet the 100% compliance threshold required for standard filing.
+                        </p>
+                    </div>
+
+                    {filingError && (
+                        <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                            <AlertCircle size={18} className="text-rose-500 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-1">Compliance Lock</p>
+                                <p className="text-[11px] text-rose-300/80 leading-relaxed font-medium">{filingError}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {isFiling ? (
+                        <div className="p-8 bg-slate-950 border border-indigo-500/20 rounded-[2.5rem] space-y-8 animate-in fade-in zoom-in-95">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-xs font-black text-indigo-400 uppercase tracking-[0.2em]">Gateway Transmission</h3>
+                                <div className="flex gap-1">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${filingStep === 'connecting' ? 'bg-indigo-500 animate-pulse' : 'bg-indigo-500/20'}`} />
+                                    <div className={`w-1.5 h-1.5 rounded-full ${filingStep === 'uploading' ? 'bg-indigo-500 animate-pulse' : 'bg-indigo-500/20'}`} />
+                                    <div className={`w-1.5 h-1.5 rounded-full ${filingStep === 'responding' ? 'bg-indigo-500 animate-pulse' : 'bg-indigo-500/20'}`} />
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-6">
+                                    <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                                        {filingStep === 'connecting' && <Activity size={32} className="text-indigo-500 animate-spin" />}
+                                        {filingStep === 'uploading' && <Upload size={32} className="text-indigo-500 animate-bounce" />}
+                                        {filingStep === 'responding' && <Zap size={32} className="text-indigo-500 animate-pulse" />}
+                                        {filingStep === 'success' && <CheckCircle2 size={32} className="text-emerald-500" />}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-lg font-black text-white tracking-tight">
+                                            {filingStep === 'connecting' && 'Connecting to Gov Server...'}
+                                            {filingStep === 'uploading' && 'Uploading Encrypted Manifests...'}
+                                            {filingStep === 'responding' && 'Waiting for Gateway Response...'}
+                                            {filingStep === 'success' && 'Filing Authorized Successfully'}
+                                        </p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mt-1">
+                                            {filingStep === 'connecting' && 'Handshaking with API Endpoints'}
+                                            {filingStep === 'uploading' && 'Transmitting 256-bit signed payloads'}
+                                            {filingStep === 'responding' && 'Awaiting cryptographic challan generation'}
+                                            {filingStep === 'success' && 'Transaction recorded in national ledger'}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-indigo-500 transition-all duration-700 ease-in-out" 
+                                        style={{ width: filingStep === 'connecting' ? '33%' : filingStep === 'uploading' ? '66%' : '100%' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                            <Button 
+                                onClick={() => handleFileProject(false)}
+                                isLoading={isFiling}
+                                disabled={!project.documents?.every((d: any) => d.complianceScore === 100)}
+                                className="flex-1 h-16 group"
+                            >
+                                <span className="flex items-center gap-2">
+                                    <FileBadge size={18} className="group-hover:scale-110 transition-transform" />
+                                    Generate Challan & File
+                                </span>
+                            </Button>
+                            <Button 
+                                variant="secondary"
+                                onClick={() => handleFileProject(true)}
+                                isLoading={isFiling}
+                                className="h-16 px-8 border-rose-500/20 text-rose-400 hover:bg-rose-500/10"
+                            >
+                                Force File
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="space-y-6 animate-in zoom-in-95 duration-500">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-6 bg-slate-950 border border-emerald-500/20 rounded-3xl space-y-4">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Government Challan</p>
+                            {project.challanData && (
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-end">
+                                        <p className="text-2xl font-black text-white tracking-tighter">₹{JSON.parse(project.challanData).amount.toLocaleString()}</p>
+                                        <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">PROCESSED</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-white/5 space-y-1">
+                                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Challan No.</p>
+                                        <p className="text-xs font-bold text-slate-300">{JSON.parse(project.challanData).challanNumber}</p>
+                                    </div>
+                                    <Button variant="ghost" size="sm" className="w-full mt-2 text-[10px]" leftIcon={<Download size={12}/>}>Download Proof</Button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 bg-slate-950 border border-slate-900 rounded-3xl space-y-4 flex flex-col justify-between">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Signed Manifest</p>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                                        <Shield size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-white">Integrity Verified</p>
+                                        <p className="text-[10px] font-medium text-slate-500 line-clamp-1">{JSON.parse(project.challanData || '{}').signedManifest?.signature?.substring(0, 20)}...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <Button 
+                                variant="secondary" 
+                                size="sm" 
+                                className="w-full text-[10px]" 
+                                onClick={() => {
+                                    const json = JSON.parse(project.challanData || '{}').signedManifest;
+                                    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `signed_manifest_${project.id.substring(0,8)}.json`;
+                                    a.click();
+                                }}
+                                leftIcon={<Search size={12}/>}
+                            >
+                                Inspect Signed JSON
+                            </Button>
+                        </div>
+                    </div>
+                    
+                    <div className="flex justify-center pt-4">
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={handleResetFiling}
+                            className="text-rose-500 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-xl px-6"
+                            leftIcon={<RotateCw size={14}/>}
+                        >
+                            Reset Filing Data
+                        </Button>
+                    </div>
+                </div>
+            )}
           </section>
         </div>
 

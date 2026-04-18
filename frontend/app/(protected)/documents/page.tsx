@@ -17,13 +17,13 @@ export default function DocumentsPage() {
   }, [])
 
   return (
-    <div className="max-w-6xl mx-auto stagger-children">
-      <div className="flex justify-between items-end mb-8">
+    <div className="max-w-7xl mx-auto space-y-8 stagger-children pb-16">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-2">Documents</h1>
-          <p className="text-slate-400">View and manage uploaded compliance documents.</p>
+          <h1 className="text-4xl font-black tracking-tight text-white mb-2">Documents</h1>
+          <p className="text-sm text-slate-400">View and manage uploaded compliance documents.</p>
         </div>
-        <a href="/upload" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
+        <a href="/upload" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-semibold transition-colors">
           + Upload File
         </a>
       </div>

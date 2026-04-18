@@ -9,15 +9,15 @@ export function Table<TData extends Record<string, unknown>>({
   className,
 }: TableProps<TData>): JSX.Element {
   return (
-    <div className={cn('overflow-x-auto rounded-xl border border-slate-200 bg-white', className)}>
-      <table className="min-w-full divide-y divide-slate-200">
-        <thead className="bg-slate-50">
+    <div className={cn('overflow-x-auto rounded-2xl border border-slate-800/80 bg-[#111827]/70', className)}>
+      <table className="min-w-full divide-y divide-slate-800/80">
+        <thead className="bg-slate-900/60">
           <tr>
             {columns.map((column) => (
               <th
                 key={String(column.key)}
                 className={cn(
-                  'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600',
+                  'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400',
                   column.className,
                 )}
               >
@@ -26,14 +26,14 @@ export function Table<TData extends Record<string, unknown>>({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-800/80">
           {data.length > 0 ? (
             data.map((row, index) => (
-              <tr key={index} className="hover:bg-slate-50">
+              <tr key={index} className="hover:bg-slate-900/50">
                 {columns.map((column) => (
                   <td
                     key={String(column.key)}
-                    className={cn('px-4 py-3 text-sm text-slate-700', column.className)}
+                    className={cn('px-4 py-3 text-sm text-slate-200', column.className)}
                   >
                     {column.cell ? column.cell(row) : String(row[column.key] ?? '-')}
                   </td>

@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { User, ChevronDown, Check, LogOut, Shield, Briefcase, UserCircle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ChevronDown, Check, LogOut } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 
 const USERS = [
   { id: '1', name: 'Aditya Sharma', role: 'Admin', avatar: 'AS', color: 'bg-blue-600' },
@@ -10,6 +12,8 @@ const USERS = [
 ]
 
 export function UserSelector() {
+  const router = useRouter()
+  const { logout } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [currentUser, setCurrentUser] = useState(USERS[0])
 
@@ -28,6 +32,12 @@ export function UserSelector() {
     setIsOpen(false)
     // Optional: Refresh page or trigger a store update if needed
     window.dispatchEvent(new Event('storage')) 
+  }
+
+  const handleLogout = (): void => {
+    logout()
+    setIsOpen(false)
+    router.push('/login')
   }
 
   return (
@@ -80,9 +90,13 @@ export function UserSelector() {
             </div>
             
             <div className="p-2">
-              <button className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-all text-sm font-medium">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-all text-sm font-medium"
+              >
                 <LogOut size={18} />
-                Logout (MVP)
+                Logout
               </button>
             </div>
           </div>

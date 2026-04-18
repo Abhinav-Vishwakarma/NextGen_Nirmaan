@@ -22,10 +22,43 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 h1, h2, h3, h4, .font-display {
   font-family: var(--font-display);
+}
+
+h1 {
+  font-size: clamp(1.85rem, 2.5vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.2;
+}
+
+h3 {
+  font-size: clamp(1.15rem, 1.4vw, 1.35rem);
+  line-height: 1.25;
+}
+
+p {
+  color: var(--text-secondary);
+}
+
+.surface-card {
+  border: 1px solid var(--border-subtle);
+  background: rgba(17, 24, 39, 0.72);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+}
+
+.surface-card:hover {
+  border-color: var(--border-bright);
 }
 
 /* Premium Mesh Background */

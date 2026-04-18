@@ -76,6 +76,8 @@ model Project {
   startDate    DateTime?
   endDate      DateTime?
   duration     String?   // e.g. "1 month"
+  challanData  String?   // JSON string of generated challan/signed JSON
+  filedAt      DateTime?
   lastUpdated  DateTime @updatedAt
   createdAt    DateTime @default(now())
 }

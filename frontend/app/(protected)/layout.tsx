@@ -1,9 +1,10 @@
 import type { JSX, ReactNode } from 'react'
 import Link from 'next/link'
-import { LayoutDashboard, Folder, FileText, Bell, Scale, Activity, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, Folder, FileText, Bell, Scale, Activity, ShieldCheck, CreditCard, Code } from 'lucide-react'
 import { ToastProvider } from '@/components/ui/Toast'
 
 import { UserSelector } from '@/components/layout/UserSelector'
+import { AuthGuard } from '@/components/features/auth'
 
 type ProtectedLayoutProps = {
   children: ReactNode
@@ -11,8 +12,9 @@ type ProtectedLayoutProps = {
 
 export default function ProtectedLayout({ children }: ProtectedLayoutProps): JSX.Element {
   return (
-    <ToastProvider>
-      <div className="flex h-screen bg-[#0a0a0f] text-[#f0f0f5]">
+    <AuthGuard>
+      <ToastProvider>
+        <div className="flex h-screen bg-[#0a0a0f] text-[#f0f0f5]">
         {/* Sidebar */}
         <aside className="w-64 border-r border-[#ffffff14] bg-[#12121a] flex flex-col hidden md:flex">
           <div className="p-6">
@@ -49,6 +51,17 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps): JSX
               <Activity size={18} className="text-slate-400" />
               Audit Logs
             </Link>
+            <div className="pt-4 mt-4 border-t border-[#ffffff14]">
+              <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Business</p>
+              <Link href="/subscription" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm font-medium">
+                <CreditCard size={18} className="text-indigo-400" />
+                Billing & Plans
+              </Link>
+              <Link href="/api-sdk" className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-sm font-medium">
+                <Code size={18} className="text-indigo-400" />
+                Developer APIs
+              </Link>
+            </div>
           </nav>
         </aside>
 
@@ -67,7 +80,8 @@ export default function ProtectedLayout({ children }: ProtectedLayoutProps): JSX
             {children}
           </main>
         </div>
-      </div>
-    </ToastProvider>
+        </div>
+      </ToastProvider>
+    </AuthGuard>
   )
 }

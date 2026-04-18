@@ -136,14 +136,14 @@ export default function PolicyEvaluatorPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10 animate-fade-in pb-20">
+    <div className="max-w-7xl mx-auto space-y-8 animate-fade-in pb-16">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-4xl font-bold text-white tracking-tight flex items-center gap-3">
             <ShieldCheck size={36} className="text-indigo-500" />
             Policy Evaluator
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Benchmark your company policies against global regulatory standards.</p>
+          <p className="text-slate-400 mt-2 text-sm">Benchmark your company policies against global regulatory standards.</p>
         </div>
       </div>
 

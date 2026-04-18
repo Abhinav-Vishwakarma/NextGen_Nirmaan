@@ -140,14 +140,14 @@ export default function LawIntelPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto stagger-children animate-fade-in pb-16">
+    <div className="max-w-7xl mx-auto stagger-children animate-fade-in pb-16">
       <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
            <div className="flex items-center gap-3 mb-2">
              <Scale size={32} className="text-blue-500" />
-             <h1 className="text-4xl font-black text-white tracking-tighter">Law Intel</h1>
+             <h1 className="text-4xl font-black tracking-tight text-white">Law Intel</h1>
            </div>
-           <p className="text-slate-400 font-medium">Neural engine for legal intelligence and regulatory compliance.</p>
+           <p className="text-sm text-slate-400 font-medium">Neural engine for legal intelligence and regulatory compliance.</p>
         </div>
 
         <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/5">

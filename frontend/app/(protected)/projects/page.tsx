@@ -167,7 +167,7 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-12 animate-fadeInUp pb-24">
+    <div className="max-w-7xl mx-auto space-y-10 animate-fadeInUp pb-20">
       <div className="mesh-bg" />
       
       {/* Header Section */}
@@ -177,10 +177,10 @@ export default function ProjectsPage() {
             <Layers size={12} />
             Command Center
           </div>
-          <h1 className="text-6xl font-black tracking-tighter text-white">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
             Project <span className="text-indigo-500">Portfolio</span>
           </h1>
-          <p className="text-slate-400 max-w-xl text-lg font-medium leading-relaxed">
+          <p className="text-slate-400 max-w-xl text-base font-medium leading-relaxed">
             Manage your high-stakes infrastructure projects with automated AI compliance monitoring and risk assessment.
           </p>
         </div>

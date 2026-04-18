@@ -21,6 +21,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { ExcelViewer } from '@/components/ui/ExcelViewer/ExcelViewer'
 import { Button } from '@/components/ui/Button'
+import { ComplianceRiskCard } from '@/components/ComplianceRiskCard'
 
 function ScoreGauge({ score }: { score: number }) {
   const radius = 45;
@@ -132,10 +133,16 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   
   if (!doc) return <div className="p-20 text-center font-black uppercase tracking-widest text-rose-500">Record Not Found</div>
 
-  const report = doc.complianceReport ? JSON.parse(doc.complianceReport) : null
+  let report;
+  try {
+    report = doc.complianceReport ? JSON.parse(doc.complianceReport) : null
+  } catch (e) {
+    console.error("Invalid compliance report JSON", e);
+    report = null;
+  }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 animate-fadeInUp pb-24">
+    <div className="max-w-7xl mx-auto space-y-8 animate-fadeInUp pb-16">
       <div className="mesh-bg" />
       
       {/* Navigation & Header */}
@@ -149,7 +156,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                 Back to Workspace
             </Link>
             <div className="flex flex-col gap-2">
-                <h1 className="text-4xl font-black text-white tracking-tighter">{doc.fileName}</h1>
+                <h1 className="text-4xl font-black text-white tracking-tight">{doc.fileName}</h1>
                 <div className="flex items-center gap-4">
                     <div className="px-3 py-1 bg-slate-900 border border-slate-800 rounded-lg text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                         <Activity size={12} className="text-indigo-500" />
@@ -242,6 +249,13 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                             </p>
                           </div>
                         </div>
+
+                        {report.financialExposure && report.financialExposure.total > 0 && (
+                          <ComplianceRiskCard 
+                            exposure={report.financialExposure}
+                            score={report.complianceScore || 0}
+                          />
+                        )}
 
                         {/* Recommendations */}
                         {report.recommendations && report.recommendations.length > 0 && (

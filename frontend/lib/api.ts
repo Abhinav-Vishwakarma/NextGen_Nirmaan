@@ -31,5 +31,12 @@ export const api = {
     })
     if (!res.ok) throw new Error(await res.text())
     return res.json()
+  },
+  delete: async (endpoint: string) => {
+    const res = await fetch(`${API_BASE}${endpoint}`, {
+      method: 'DELETE'
+    })
+    if (!res.ok) throw new Error(await res.text())
+    return res.json()
   }
 }
